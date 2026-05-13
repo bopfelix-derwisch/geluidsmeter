@@ -1,0 +1,9 @@
+.venv/
+data/
+__pycache__/
+*.pyc
+*.pyo
+.env
+core/location_private.yaml
+*.parquet
+*.jsonl

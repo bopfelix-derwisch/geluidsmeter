@@ -1,0 +1,43 @@
+project:
+  name: geluidsmeter
+  description: "Lokaal geluidsprofiel bij vaste meetlocatie; publicatie via Portolan/STAC."
+  quality_label: "prototype_indicatief_niet_juridisch"
+
+measurement:
+  interval_seconds: 1
+  aggregate_seconds: 60
+  sample_rate: 48000
+  channels: 1
+  device_name: "plughw:CARD=Webcam,DEV=0"   # C922 — gedeeld met Derwisch ritueel.py
+  store_raw_audio: false
+
+location:
+  private_location_file: "core/location_private.yaml"
+  publish_exact_location: false
+  public_location_precision_m: 100
+  crs: "EPSG:4326"
+
+features:
+  calculate_rms: true
+  calculate_lmax: true
+  calculate_frequency_bands: true
+  bands_hz:
+    low: [20, 250]
+    mid: [250, 2000]
+    high: [2000, 8000]
+  detect_events: true
+  peak_threshold_db_relative: 12
+  low_freq_threshold_relative: 8
+
+outputs:
+  raw_features_dir: "/mnt/nvme/geluidsmeter/data/raw_features"
+  processed_dir: "/mnt/nvme/geluidsmeter/data/processed"
+  catalog_dir: "/mnt/nvme/geluidsmeter/data/catalog"
+
+api:
+  host: "0.0.0.0"
+  port: 8792   # 8791 bezet door felix-nazaten/upload_server.py
+
+portolan:
+  collection: "geluidsmeter"
+  remote: ""   # leeg = alleen lokale catalogus in MVP

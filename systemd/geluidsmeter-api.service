@@ -1,0 +1,14 @@
+[Unit]
+Description=Geluidsmeter — FastAPI service (poort 8792)
+After=network.target
+
+[Service]
+User=bob
+WorkingDirectory=/home/bob/Geluidsmeter
+Environment=GELUIDSMETER_CONFIG_PATH=/home/bob/Geluidsmeter/core/config.yaml
+ExecStart=/home/bob/Geluidsmeter/.venv/bin/uvicorn geluidsmeter.api:app --host 0.0.0.0 --port 8792 --app-dir src
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
