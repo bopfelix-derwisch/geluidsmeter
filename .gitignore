@@ -7,3 +7,4 @@ __pycache__/
 core/location_private.yaml
 *.parquet
 *.jsonl
+\n.superpowers/
