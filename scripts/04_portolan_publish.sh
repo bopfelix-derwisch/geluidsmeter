@@ -1,31 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
-
-if [ -d ".venv" ]; then
-  source .venv/bin/activate
-fi
+CATALOG_DIR="/mnt/nvme/geluidsmeter/data/catalog"
+PROCESSED_DIR="/mnt/nvme/geluidsmeter/data/processed"
+COLLECTION_DIR="$CATALOG_DIR/geluidsmeter"
+TODAY="$(date -u +%Y-%m-%d)"
 
 if ! command -v portolan &>/dev/null; then
-  echo "FOUT: portolan niet geïnstalleerd. Voer uit: uv tool install portolan-cli"
+  echo "FOUT: portolan niet geïnstalleerd. Voer uit: pipx install portolan-cli"
   exit 1
 fi
 
-if [ ! -f "catalog.json" ] && [ ! -d ".portolan" ]; then
-  portolan init
+# Catalogus initialiseren als die nog niet bestaat
+if [ ! -f "$CATALOG_DIR/catalog.json" ]; then
+  portolan init "$CATALOG_DIR" --auto --title "Geluidsmeter" --description "Lokaal geluidsprofiel — prototype indicatief"
 fi
 
-portolan add /mnt/nvme/geluidsmeter/data/processed/
+# Collection-subdir aanmaken
+mkdir -p "$COLLECTION_DIR"
 
-if [ ! -f "metadata.yaml" ]; then
-  portolan metadata init || true
-fi
+# GeoParquet kopiëren naar collection (portolan beheert bestanden binnen de catalog)
+for f in "$PROCESSED_DIR"/measurements_*.parquet; do
+  [ -f "$f" ] && cp -u "$f" "$COLLECTION_DIR/"
+done
 
-portolan metadata validate || true
-portolan check --fix
-portolan readme || true
+# Toevoegen aan catalogus
+cd "$CATALOG_DIR"
+portolan add geluidsmeter/ --datetime "$TODAY"
 
-echo "Portolan catalogus bijgewerkt."
-echo "Optioneel pushen:"
-echo "  portolan push s3://<bucket>/geluidsmeter --collection geluidsmeter"
+portolan check --fix "$CATALOG_DIR" || true
+
+echo "Portolan catalogus bijgewerkt: $CATALOG_DIR"
