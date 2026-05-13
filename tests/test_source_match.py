@@ -34,9 +34,9 @@ def test_check_norm_exceeded():
 
 def test_identify_sources_empty():
     empty_gdf = gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
-    result = identify_sources(empty_gdf, Point(5.0, 52.0))
+    result = identify_sources(empty_gdf)
     assert result["dominant_source"] == "onbekend"
-    assert result["weg_pct"] == 0
+    assert result["weg_detected"] is False
 
 
 def test_identify_sources_with_road():
@@ -44,9 +44,10 @@ def test_identify_sources_with_road():
         {"wegbeheerdersoort": ["Rijksweg"], "geometry": [Point(5.0, 52.0).buffer(0.001)]},
         crs="EPSG:4326",
     )
-    result = identify_sources(road, Point(5.0, 52.0))
+    result = identify_sources(road)
     assert result["weg_count"] >= 1
     assert result["dominant_source"] == "wegverkeer"
+    assert result["weg_detected"] is True
 
 
 def test_match_cvgg_no_overlap():

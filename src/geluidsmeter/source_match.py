@@ -26,10 +26,10 @@ def check_norm(lden_db: float, lnight_db: float) -> dict:
     }
 
 
-def identify_sources(nwb_gdf: gpd.GeoDataFrame, location: Point) -> dict:
+def identify_sources(nwb_gdf: gpd.GeoDataFrame) -> dict:
     """Analyseer wegtypen in de bbox als bronindicatie."""
     if nwb_gdf.empty:
-        return {"dominant_source": "onbekend", "weg_count": 0, "weg_pct": 0}
+        return {"dominant_source": "onbekend", "weg_count": 0, "weg_detected": False}
 
     weg_count = len(nwb_gdf)
     rijks = nwb_gdf[nwb_gdf.get("wegbeheerdersoort", pd.Series()).str.contains(
@@ -41,7 +41,7 @@ def identify_sources(nwb_gdf: gpd.GeoDataFrame, location: Point) -> dict:
         "dominant_source": dominant,
         "weg_count": weg_count,
         "rijksweg_count": len(rijks),
-        "weg_pct": 100,
+        "weg_detected": True,
     }
 
 
@@ -55,8 +55,16 @@ def match_cvgg(location: Point, cvgg_gdf: gpd.GeoDataFrame) -> dict:
         return {"lden": None, "lnight": None, "source": "geen overlap"}
 
     row = hits.iloc[0]
+
+    def _safe_float(val):
+        try:
+            f = float(val)
+            return None if pd.isna(f) else f
+        except (TypeError, ValueError):
+            return None
+
     return {
-        "lden": float(row["lden"]) if "lden" in row else None,
-        "lnight": float(row["lnight"]) if "lnight" in row else None,
+        "lden": _safe_float(row.get("lden")) if "lden" in row.index else None,
+        "lnight": _safe_float(row.get("lnight")) if "lnight" in row.index else None,
         "source": "cvgg",
     }
