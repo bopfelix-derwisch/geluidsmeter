@@ -10,6 +10,7 @@ measurement:
   channels: 1
   device_name: "C922 Pro Stream Webcam"   # hw:0,0 — gedeeld met Derwisch ritueel.py
   store_raw_audio: false
+  calibration_offset_db: 0    # dBFS → dB(A) schatting; 0 = ongekalibreerd
 
 location:
   private_location_file: "core/location_private.yaml"
@@ -41,3 +42,10 @@ api:
 portolan:
   collection: "geluidsmeter"
   remote: ""   # leeg = alleen lokale catalogus in MVP
+
+sources:
+  wfs_bbox_m: 500             # bbox straal rond meetlocatie in meters
+  force_refresh: false        # true = WFS opnieuw ophalen ook als data bestaat
+  nwb_wfs_url: "https://service.pdok.nl/rws/nwbwegen/wfs/v1_0"
+  bgt_ogcapi_url: "https://api.pdok.nl/lv/bgt/ogc/v1"
+  geluidkaarten_wfs_url: "https://service.pdok.nl/ienw/geluidsbelastingkaarten-wegen-lden/wfs/v1_0"
