@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from geluidsmeter.config import load_config
-from geluidsmeter.aggregate import load_features, daily_profile
+from geluidsmeter.aggregate import load_features, daily_profile, write_geoparquet
 
 
 def main():
@@ -29,6 +29,10 @@ def main():
     out_file = out_dir / f"daily_profile_{today}.json"
     out_file.write_text(json.dumps(profile, indent=2))
     print(f"Profiel geschreven: {out_file}")
+
+    parquet_file = out_dir / f"measurements_{today}.parquet"
+    write_geoparquet(df, parquet_file, config)
+    print(f"GeoParquet geschreven: {parquet_file}")
 
 
 if __name__ == "__main__":
