@@ -10,7 +10,7 @@
 | pipx | niet geïnstalleerd |
 | uv | niet geïnstalleerd |
 | portolan | niet geïnstalleerd |
-| Mic | C922 Pro Stream Webcam (card 0, `plughw:CARD=Webcam,DEV=0`) |
+| Mic | C922 Pro Stream Webcam (PortAudio device 0, `hw:0,0` — gebruik `"C922 Pro Stream Webcam"` als device_name) |
 | NVMe | /mnt/nvme/ — 429GB vrij (eigenaar root/marc — sudo nodig voor dirs) |
 | eMMC / | 12GB vrij — krap |
 | RAM | 61GB totaal, ~31GB vrij |

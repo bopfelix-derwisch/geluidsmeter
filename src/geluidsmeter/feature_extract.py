@@ -18,8 +18,9 @@ def lmax_dbfs(samples: np.ndarray) -> float:
 
 
 def frequency_bands(samples: np.ndarray, sample_rate: int, bands_hz: dict) -> dict:
-    freqs = np.fft.rfftfreq(len(samples), d=1.0 / sample_rate)
-    fft_mag = np.abs(np.fft.rfft(samples.astype(np.float64)))
+    n = len(samples)
+    freqs = np.fft.rfftfreq(n, d=1.0 / sample_rate)
+    fft_mag = np.abs(np.fft.rfft(samples.astype(np.float64))) / n  # amplitude-spectrum, zelfde schaal als tijddomein
     result = {}
     for name, (low, high) in bands_hz.items():
         mask = (freqs >= low) & (freqs < high)

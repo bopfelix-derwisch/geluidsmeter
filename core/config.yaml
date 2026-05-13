@@ -6,9 +6,9 @@ project:
 measurement:
   interval_seconds: 1
   aggregate_seconds: 60
-  sample_rate: 48000
+  sample_rate: 32000
   channels: 1
-  device_name: "plughw:CARD=Webcam,DEV=0"   # C922 — gedeeld met Derwisch ritueel.py
+  device_name: "C922 Pro Stream Webcam"   # hw:0,0 — gedeeld met Derwisch ritueel.py
   store_raw_audio: false
 
 location:
