@@ -47,6 +47,7 @@ def _location_entry(
         "norm_status": norm_status,
         "laatste_meting": datetime.now(timezone.utc).isoformat() if rms_dba is not None else None,
         "kwaliteit": config.get("project", {}).get("quality_label", "prototype_indicatief_niet_juridisch"),
+        "source": "jetson",
     }
 
 
@@ -210,7 +211,7 @@ def api_locations():
         rivm_gdf = gpd.read_file(rivm_path)
         rivm_lden = get_rivm_lden(ShapelyPoint(loc["lon"], loc["lat"]), rivm_gdf)
 
-    return [_location_entry(_config, pub_lat, pub_lon, rms_dba, rivm_lden)]
+    return [_location_entry(_config, pub_lat, pub_lon, rms_dba, rivm_lden)] + _mobile_location_entries()
 
 
 @app.post("/api/submit", status_code=201)
@@ -275,3 +276,8 @@ def dashboard():
 @app.get("/public", response_class=HTMLResponse)
 def public_page():
     return (_static_dir / "public.html").read_text()
+
+
+@app.get("/meten", response_class=HTMLResponse)
+def meten_page():
+    return (_static_dir / "meten.html").read_text()
