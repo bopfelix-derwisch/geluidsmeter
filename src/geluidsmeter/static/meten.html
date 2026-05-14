@@ -80,10 +80,12 @@ if (!isCalibrated && token) {
 
 let dbfsValue = -120;
 let gpsCoords = null;
+let micOk = false;
 
 async function startMic() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    micOk = true;
     const ctx = new AudioContext();
     const source = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
@@ -100,7 +102,12 @@ async function startMic() {
     }
     tick();
   } catch (e) {
+    micOk = false;
     document.getElementById("waarde").textContent = "mic?";
+    document.getElementById("insturen-btn").disabled = true;
+    const foutEl = document.getElementById("fout");
+    foutEl.textContent = "Microfoon niet beschikbaar — geef toestemming in je browser.";
+    foutEl.style.display = "block";
   }
 }
 
@@ -127,7 +134,7 @@ navigator.geolocation.getCurrentPosition(
     if (token) document.getElementById("insturen-btn").disabled = false;
   },
   () => {
-    document.getElementById("gps-status").textContent = "📍 GPS niet beschikbaar";
+    document.getElementById("gps-status").textContent = "📍 GPS niet beschikbaar — insturen niet mogelijk";
     document.getElementById("gps-status").style.color = "#f87171";
   },
   { enableHighAccuracy: true, timeout: 15000 }
@@ -142,14 +149,18 @@ async function insturen() {
   btn.textContent = "Bezig…";
   foutEl.style.display = "none";
   try {
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 10000);
     const resp = await fetch("/api/submit", {
       method: "POST",
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`,
       },
       body: JSON.stringify({ dba, lat: gpsCoords.lat, lon: gpsCoords.lon, naam }),
     });
+    clearTimeout(tid);
     if (resp.ok) {
       const tijd = new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
       const bev = document.getElementById("bevestiging");
@@ -163,7 +174,7 @@ async function insturen() {
       btn.textContent = "Insturen";
     }
   } catch (e) {
-    foutEl.textContent = "Netwerkfout — probeer opnieuw.";
+    foutEl.textContent = e.name === "AbortError" ? "Timeout — probeer opnieuw." : "Netwerkfout — probeer opnieuw.";
     foutEl.style.display = "block";
     btn.disabled = false;
     btn.textContent = "Insturen";
