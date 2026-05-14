@@ -49,4 +49,4 @@ sources:
   force_refresh: false        # true = WFS opnieuw ophalen ook als data bestaat
   nwb_wfs_url: "https://service.pdok.nl/rws/nwbwegen/wfs/v1_0"
   bgt_ogcapi_url: "https://api.pdok.nl/lv/bgt/ogc/v1"
-  geluidkaarten_wfs_url: "https://service.pdok.nl/ienw/geluidsbelastingkaarten-wegen-lden/wfs/v1_0"
+  geluidkaarten_wfs_url: "https://service.pdok.nl/ienw/geluidsbelastingkaarten-wegen-lden/wfs/v1_0"  # Sprint 4: endpoint nog niet beschikbaar via PDOK — normcheck werkt zonder
