@@ -4,7 +4,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 import geopandas as gpd
@@ -63,6 +63,11 @@ def _latest_feature() -> dict | None:
         for line in f:
             last_line = line.strip()
     return json.loads(last_line) if last_line else None
+
+
+@app.get("/")
+def root():
+    return RedirectResponse(url="/public")
 
 
 @app.get("/health")
