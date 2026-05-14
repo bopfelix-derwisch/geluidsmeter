@@ -1,5 +1,70 @@
 import json
 import geluidsmeter.api as api_module
+from fastapi.testclient import TestClient
+
+
+def _config_met_tmp(tmp_path):
+    api_module._config = {
+        "mobile": {
+            "submit_token": "test-token-abc",
+            "measurements_file": str(tmp_path / "mobile.jsonl"),
+        },
+        "project": {"quality_label": "prototype_indicatief_niet_juridisch"},
+    }
+
+
+def test_submit_401_verkeerde_token(tmp_path):
+    _config_met_tmp(tmp_path)
+    client = TestClient(api_module.app)
+    resp = client.post(
+        "/api/submit",
+        json={"dba": 52.0, "lat": 52.08, "lon": 4.29, "naam": "Test"},
+        headers={"Authorization": "Bearer verkeerd"},
+    )
+    assert resp.status_code == 401
+
+
+def test_submit_201_correct(tmp_path):
+    _config_met_tmp(tmp_path)
+    client = TestClient(api_module.app)
+    resp = client.post(
+        "/api/submit",
+        json={"dba": 63.2, "lat": 52.079, "lon": 4.315, "naam": "Binnenhof"},
+        headers={"Authorization": "Bearer test-token-abc"},
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["accepted"] is True
+    assert "id" in body
+
+
+def test_submit_schrijft_jsonl(tmp_path):
+    _config_met_tmp(tmp_path)
+    client = TestClient(api_module.app)
+    client.post(
+        "/api/submit",
+        json={"dba": 55.0, "lat": 52.079, "lon": 4.315, "naam": "Test locatie"},
+        headers={"Authorization": "Bearer test-token-abc"},
+    )
+    fp = tmp_path / "mobile.jsonl"
+    assert fp.exists()
+    rec = json.loads(fp.read_text().strip())
+    assert rec["dba"] == 55.0
+    assert rec["naam"] == "Test locatie"
+    assert rec["source"] == "mobile"
+    assert rec["lat"] == 52.079
+
+
+def test_submit_default_naam(tmp_path):
+    _config_met_tmp(tmp_path)
+    client = TestClient(api_module.app)
+    client.post(
+        "/api/submit",
+        json={"dba": 40.0, "lat": 52.0, "lon": 4.3},
+        headers={"Authorization": "Bearer test-token-abc"},
+    )
+    rec = json.loads((tmp_path / "mobile.jsonl").read_text().strip())
+    assert rec["naam"] == "Mobiele meting"
 
 
 def test_mobile_entries_leeg_als_geen_file():

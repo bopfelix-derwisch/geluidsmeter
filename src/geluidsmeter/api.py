@@ -1,17 +1,27 @@
 """FastAPI service op poort 8792."""
 import json
+import uuid
 from pathlib import Path
 from datetime import datetime, timezone
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 import geopandas as gpd
 from shapely.geometry import Point as ShapelyPoint
 from .config import load_config, load_private_location
 from .aggregate import _round_location
 from .source_match import get_rivm_lden
+
+
+class MobileSubmission(BaseModel):
+    dba: float | None = None
+    lat: float
+    lon: float
+    naam: str = "Mobiele meting"
+
 
 def _location_entry(
     config: dict,
@@ -201,6 +211,36 @@ def api_locations():
         rivm_lden = get_rivm_lden(ShapelyPoint(loc["lon"], loc["lat"]), rivm_gdf)
 
     return [_location_entry(_config, pub_lat, pub_lon, rms_dba, rivm_lden)]
+
+
+@app.post("/api/submit", status_code=201)
+def api_submit(
+    submission: MobileSubmission,
+    authorization: str | None = Header(default=None),
+):
+    submit_token = _config.get("mobile", {}).get("submit_token", "")
+    if not submit_token or authorization != f"Bearer {submit_token}":
+        raise HTTPException(status_code=401, detail="Ongeldige token")
+
+    record = {
+        "id": str(uuid.uuid4()),
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "lat": submission.lat,
+        "lon": submission.lon,
+        "naam": submission.naam,
+        "dba": submission.dba,
+        "source": "mobile",
+        "kwaliteit": _config.get("project", {}).get(
+            "quality_label", "prototype_indicatief_niet_juridisch"
+        ),
+    }
+
+    fp = Path(_config["mobile"]["measurements_file"])
+    fp.parent.mkdir(parents=True, exist_ok=True)
+    with open(fp, "a") as f:
+        f.write(json.dumps(record) + "\n")
+
+    return {"id": record["id"], "accepted": True}
 
 
 @app.get("/geodata/rivm")
