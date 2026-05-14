@@ -181,3 +181,8 @@ def geodata_bgt():
 @app.get("/dashboard", response_class=HTMLResponse)
 def dashboard():
     return (_static_dir / "dashboard.html").read_text()
+
+
+@app.get("/public", response_class=HTMLResponse)
+def public_page():
+    return (_static_dir / "public.html").read_text()

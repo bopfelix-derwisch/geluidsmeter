@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geluidsmeting Nederland</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #f8fafc; color: #1e293b; max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+    h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { color: #64748b; font-size: 0.9rem; margin-bottom: 24px; }
+    #map { height: 300px; border-radius: 8px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
+    .locatie { background: white; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); border-left: 4px solid #e2e8f0; }
+    .locatie.boven-norm { border-left-color: #f97316; }
+    .locatie.binnen-norm { border-left-color: #22c55e; }
+    .locatie h2 { font-size: 1.05rem; margin-bottom: 14px; color: #0f172a; }
+    .metingen { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    @media (max-width: 600px) { .metingen { grid-template-columns: 1fr; } }
+    .meting { background: #f8fafc; border-radius: 6px; padding: 10px 12px; }
+    .meting .label { font-size: 0.72rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+    .meting .waarde { font-size: 1.4rem; font-weight: 700; color: #1e293b; }
+    .status-tekst { font-size: 0.9rem; line-height: 1.5; }
+    .boven { color: #c2410c; }
+    .binnen { color: #15803d; }
+    .tijdstip { font-size: 0.75rem; color: #94a3b8; margin-top: 6px; }
+    footer { margin-top: 40px; font-size: 0.78rem; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 16px; line-height: 1.6; }
+    .uitleg { background: white; border-radius: 8px; padding: 20px; margin-bottom: 24px; font-size: 0.9rem; line-height: 1.7; color: #334155; }
+    .uitleg p { margin-bottom: 8px; }
+    .uitleg p:last-child { margin-bottom: 0; }
+  </style>
+</head>
+<body>
+
+<h1>Geluidsmeting Nederland</h1>
+<p class="subtitle">Onafhankelijke metingen van omgevingsgeluid op straatniveau</p>
+
+<div id="map"></div>
+<div id="locaties"></div>
+
+<div class="uitleg">
+  <p>Met een microfoon op een vaste locatie meten we continu het omgevingsgeluid in decibel.</p>
+  <p>De gemeten waarde vergelijken we met de referentiewaarde van het RIVM voor de buurt en de wettelijke norm uit de Omgevingswet (48 dB(A) voor wonen overdag).</p>
+  <p>Dit is een onafhankelijk burgeronderzoek — de waarden zijn indicatief en niet juridisch bindend.</p>
+</div>
+
+<footer>
+  ⚠ <strong>Indicatief — niet juridisch bruikbaar.</strong> Consumentenhardware zonder officiële kalibratie.
+  Bronnen: RIVM Digibeter (referentiewaarden buurt), Omgevingswet art. 5.67 (normen).
+</footer>
+
+<script>
+const map = L.map("map").setView([52.3, 5.0], 7);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: "© OpenStreetMap"
+}).addTo(map);
+
+async function init() {
+  const locs = await fetch("/api/locations").then(r => r.json());
+  const container = document.getElementById("locaties");
+
+  locs.forEach(loc => {
+    const bovenNorm = loc.norm_status === "boven_norm";
+    const kleur = bovenNorm ? "#f97316" : "#22c55e";
+
+    const marker = L.circleMarker([loc.lat, loc.lon], {
+      radius: 10, color: kleur, fillColor: kleur, fillOpacity: 0.85, weight: 2
+    }).addTo(map);
+    marker.bindPopup(`<b>${loc.naam}</b><br>Gemeten: ${loc.lden_gemeten ?? "—"} dB(A)`);
+
+    const statusTekst = loc.norm_status === null
+      ? "Nog geen meting beschikbaar."
+      : bovenNorm
+        ? "De gemeten waarde ligt <strong>boven</strong> de wettelijke norm voor wonen."
+        : "De gemeten waarde ligt <strong>binnen</strong> de wettelijke norm voor wonen.";
+
+    const tijdstip = loc.laatste_meting
+      ? new Date(loc.laatste_meting).toLocaleString("nl-NL", {
+          hour: "2-digit", minute: "2-digit", day: "numeric", month: "long", year: "numeric"
+        })
+      : "onbekend";
+
+    const div = document.createElement("div");
+    div.className = `locatie ${bovenNorm ? "boven-norm" : loc.norm_status ? "binnen-norm" : ""}`;
+    div.innerHTML = `
+      <h2>📍 ${loc.naam}</h2>
+      <div class="metingen">
+        <div class="meting">
+          <div class="label">Gemeten geluidsniveau</div>
+          <div class="waarde">${loc.lden_gemeten !== null ? loc.lden_gemeten + " dB(A)" : "—"}</div>
+        </div>
+        <div class="meting">
+          <div class="label">Referentie buurt (RIVM)</div>
+          <div class="waarde">${loc.rivm_lden !== null ? loc.rivm_lden + " dB(A)" : "—"}</div>
+        </div>
+        <div class="meting">
+          <div class="label">Wettelijke norm</div>
+          <div class="waarde">${loc.norm_lden} dB(A)</div>
+        </div>
+      </div>
+      <div class="status-tekst ${bovenNorm ? "boven" : "binnen"}">${statusTekst}</div>
+      <div class="tijdstip">Laatste meting: ${tijdstip}</div>
+    `;
+    container.appendChild(div);
+  });
+}
+init();
+</script>
+</body>
+</html>
