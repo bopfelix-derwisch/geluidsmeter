@@ -13,6 +13,33 @@ from .config import load_config, load_private_location
 from .aggregate import _round_location
 from .source_match import get_rivm_lden
 
+def _location_entry(
+    config: dict,
+    pub_lat: float,
+    pub_lon: float,
+    rms_dba: float | None,
+    rivm_lden: float | None,
+) -> dict:
+    norm_lden = 48
+    norm_status = None
+    if rms_dba is not None:
+        norm_status = "binnen_norm" if rms_dba <= norm_lden else "boven_norm"
+    loc_cfg = config.get("location", {})
+    return {
+        "id": loc_cfg.get("public_id", "meetlocatie"),
+        "naam": loc_cfg.get("public_name", "Meetlocatie"),
+        "lat": pub_lat,
+        "lon": pub_lon,
+        "precision_m": loc_cfg.get("public_location_precision_m", 100),
+        "lden_gemeten": rms_dba,
+        "rivm_lden": rivm_lden,
+        "norm_lden": norm_lden,
+        "norm_status": norm_status,
+        "laatste_meting": datetime.now(timezone.utc).isoformat() if rms_dba is not None else None,
+        "kwaliteit": config.get("project", {}).get("quality_label", "prototype_indicatief_niet_juridisch"),
+    }
+
+
 app = FastAPI(title="Geluidsmeter API", version="0.1.0")
 _static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(_static_dir)), name="static")
