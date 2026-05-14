@@ -76,7 +76,7 @@ def _latest_feature() -> dict | None:
     return json.loads(last_line) if last_line else None
 
 
-def _mobile_location_entries() -> list[dict]:
+def _mobile_location_entries(rivm_gdf=None) -> list[dict]:
     fp_str = _config.get("mobile", {}).get("measurements_file", "")
     if not fp_str:
         return []
@@ -99,6 +99,9 @@ def _mobile_location_entries() -> list[dict]:
                 norm_status = None
                 if dba is not None:
                     norm_status = "binnen_norm" if dba <= norm_lden else "boven_norm"
+                rivm_lden = None
+                if rivm_gdf is not None:
+                    rivm_lden = get_rivm_lden(ShapelyPoint(rec["lon"], rec["lat"]), rivm_gdf)
                 entries.append({
                     "id": rec["id"],
                     "naam": rec.get("naam", "Mobiele meting"),
@@ -106,7 +109,7 @@ def _mobile_location_entries() -> list[dict]:
                     "lon": rec["lon"],
                     "precision_m": 20,
                     "lden_gemeten": dba,
-                    "rivm_lden": None,
+                    "rivm_lden": rivm_lden,
                     "norm_lden": norm_lden,
                     "norm_status": norm_status,
                     "laatste_meting": rec["ts"],
@@ -211,7 +214,7 @@ def api_locations():
         rivm_gdf = gpd.read_file(rivm_path)
         rivm_lden = get_rivm_lden(ShapelyPoint(loc["lon"], loc["lat"]), rivm_gdf)
 
-    return [_location_entry(_config, pub_lat, pub_lon, rms_dba, rivm_lden)] + _mobile_location_entries()
+    return [_location_entry(_config, pub_lat, pub_lon, rms_dba, rivm_lden)] + _mobile_location_entries(rivm_gdf if rivm_path.exists() else None)
 
 
 @app.post("/api/submit", status_code=201)
