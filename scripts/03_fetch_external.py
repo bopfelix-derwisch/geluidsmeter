@@ -36,7 +36,8 @@ def fetch_wfs(url: str, typename: str, bbox: tuple, out_path: Path) -> bool:
         r.raise_for_status()
         data = r.json()
         if not data.get("features"):
-            print(f"  [leeg] {typename} — geen features in bbox")
+            print(f"  [leeg] {typename} — geen features in bbox; bestand NIET opgeslagen")
+            return False
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(data, ensure_ascii=False))
         print(f"  [ok] {len(data.get('features', []))} features → {out_path}")
@@ -55,6 +56,9 @@ def fetch_bgt_ogcapi(base_url: str, collection: str, bbox: tuple, out_path: Path
         r = requests.get(url, params=params, timeout=30)
         r.raise_for_status()
         data = r.json()
+        if not data.get("features"):
+            print(f"  [leeg] BGT {collection} — geen features in bbox; bestand NIET opgeslagen")
+            return False
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps(data, ensure_ascii=False))
         print(f"  [ok] {len(data.get('features', []))} features → {out_path}")
@@ -73,13 +77,14 @@ def main():
     loc = load_private_location(config)
     src = config["sources"]
     bbox = bbox_from_location(loc["lat"], loc["lon"], src["wfs_bbox_m"])
-    ext_base = Path("/mnt/nvme/geluidsmeter/data/external")
+    ext_base = Path(config["outputs"]["external_dir"])
+    force = args.force or src.get("force_refresh", False)
 
     print(f"[03_fetch_external] bbox={tuple(round(x, 6) for x in bbox)}, radius={src['wfs_bbox_m']}m")
 
     # NWB Wegen — wegtype context
     nwb_out = ext_base / "atlas" / "nwb_wegvakken.geojson"
-    if args.force or not nwb_out.exists():
+    if force or not nwb_out.exists():
         print("→ NWB Wegen (wegvakken)...")
         fetch_wfs(src["nwb_wfs_url"], "nwbwegen:wegvakken", bbox, nwb_out)
     else:
@@ -87,7 +92,7 @@ def main():
 
     # BGT Wegdeel — infrastructuurtype
     bgt_out = ext_base / "bgt" / "bgt_wegdeel.geojson"
-    if args.force or not bgt_out.exists():
+    if force or not bgt_out.exists():
         print("→ BGT Wegdeel...")
         fetch_bgt_ogcapi(src["bgt_ogcapi_url"], "wegdeel", bbox, bgt_out)
     else:
@@ -95,7 +100,7 @@ def main():
 
     # Geluidkaarten IenW — Lden (optioneel, service kan ontbreken)
     cvgg_out = ext_base / "cvgg" / "geluidkaart_lden.geojson"
-    if args.force or not cvgg_out.exists():
+    if force or not cvgg_out.exists():
         print("→ Geluidkaarten IenW (Lden)...")
         ok = fetch_wfs(src["geluidkaarten_wfs_url"], "geluidsbelastingkaarten:geluidzone",
                        bbox, cvgg_out)
