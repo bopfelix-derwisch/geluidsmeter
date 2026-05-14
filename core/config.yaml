@@ -10,7 +10,7 @@ measurement:
   channels: 1
   device_name: "C922 Pro Stream Webcam"   # hw:0,0 — gedeeld met Derwisch ritueel.py
   store_raw_audio: false
-  calibration_offset_db: 0    # dBFS → dB(A) schatting; 0 = ongekalibreerd
+  calibration_offset_db: 90.7  # dBFS → dB(A); gekalibreerd 2026-05-14 tov telefoon-SLM (ref=31 dB(A))
 
 location:
   private_location_file: "core/location_private.yaml"
