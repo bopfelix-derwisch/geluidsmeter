@@ -139,7 +139,9 @@ def summary():
 def api_locations():
     offset = _config.get("measurement", {}).get("calibration_offset_db", 0)
     feature = _latest_feature()
-    rms_dba = round(feature["rms_dbfs"] + offset, 1) if feature else None
+    # Zonder kalibratie (offset=0) is rms_dbfs negatief — niet vergelijkbaar met norm in dB(A)
+    calibrated = offset != 0
+    rms_dba = round(feature["rms_dbfs"] + offset, 1) if (feature and calibrated) else None
 
     loc = load_private_location(_config)
     precision_m = _config.get("location", {}).get("public_location_precision_m", 100)

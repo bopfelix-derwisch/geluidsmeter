@@ -83,8 +83,11 @@ async function init() {
 
     const div = document.createElement("div");
     div.className = `locatie ${bovenNorm ? "boven-norm" : loc.norm_status ? "binnen-norm" : ""}`;
-    div.innerHTML = `
-      <h2>📍 ${loc.naam}</h2>
+    const h2 = document.createElement("h2");
+    h2.textContent = `📍 ${loc.naam}`;
+    div.appendChild(h2);
+    const body = document.createElement("div");
+    body.innerHTML = `
       <div class="metingen">
         <div class="meting">
           <div class="label">Gemeten geluidsniveau</div>
@@ -102,6 +105,7 @@ async function init() {
       <div class="status-tekst ${bovenNorm ? "boven" : "binnen"}">${statusTekst}</div>
       <div class="tijdstip">Laatste meting: ${tijdstip}</div>
     `;
+    div.appendChild(body);
     container.appendChild(div);
   });
 }
