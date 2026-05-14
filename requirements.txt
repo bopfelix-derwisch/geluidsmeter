@@ -13,4 +13,5 @@ uvicorn[standard]
 pydantic
 python-dotenv
 requests
+httpx
 aiofiles
