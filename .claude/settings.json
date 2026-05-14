@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(pip show:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(pytest:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(curl https://api.pdok.nl/*)",
+      "Bash(curl https://service.pdok.nl/*)",
+      "Bash(curl -s http://localhost:8792/*)",
+      "Bash(curl -s https://geluid.felixisfelix.com/*)",
+      "Bash(.venv/bin/*)",
+      "Bash(PYTHONPATH=src .venv/bin/*)",
+      "Bash(PYTHONPATH=/home/bob/Geluidsmeter/src /home/bob/Geluidsmeter/.venv/bin/*)",
+      "Bash(pkill -f \"uvicorn geluidsmeter\")",
+      "Edit(**)",
+      "Write(**)",
+      "WebSearch"
+    ],
+    "deny": [
+      "Bash(sudo:*)",
+      "Bash(rm -rf:*)",
+      "Bash(systemctl:*)",
+      "Bash(git push:*)"
+    ]
+  }
+}
