@@ -1,0 +1,14 @@
+[Unit]
+Description=Geluidsmeter — Cloudflare Tunnel (geluid.felixisfelix.com)
+After=network-online.target geluidsmeter-api.service
+Wants=network-online.target
+Requires=geluidsmeter-api.service
+
+[Service]
+User=bob
+ExecStart=/usr/local/bin/cloudflared tunnel --config /home/bob/.cloudflared/config.yml run
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target
