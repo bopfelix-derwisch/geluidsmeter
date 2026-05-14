@@ -135,6 +135,25 @@ def summary():
     }
 
 
+@app.get("/api/locations")
+def api_locations():
+    offset = _config.get("measurement", {}).get("calibration_offset_db", 0)
+    feature = _latest_feature()
+    rms_dba = round(feature["rms_dbfs"] + offset, 1) if feature else None
+
+    loc = load_private_location(_config)
+    precision_m = _config.get("location", {}).get("public_location_precision_m", 100)
+    pub_lat, pub_lon = _round_location(loc["lat"], loc["lon"], precision_m)
+
+    rivm_lden = None
+    rivm_path = Path(_config["outputs"]["external_dir"]) / "rivm" / "geluid_buurt.geojson"
+    if rivm_path.exists():
+        rivm_gdf = gpd.read_file(rivm_path)
+        rivm_lden = get_rivm_lden(ShapelyPoint(loc["lon"], loc["lat"]), rivm_gdf)
+
+    return [_location_entry(_config, pub_lat, pub_lon, rms_dba, rivm_lden)]
+
+
 @app.get("/geodata/rivm")
 def geodata_rivm():
     p = Path(_config["outputs"]["external_dir"]) / "rivm" / "geluid_buurt.geojson"
