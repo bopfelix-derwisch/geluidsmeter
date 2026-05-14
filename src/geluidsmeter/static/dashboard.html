@@ -12,7 +12,7 @@
     body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; }
     header { padding: 16px 24px; background: #1e293b; border-bottom: 1px solid #334155; }
     header h1 { font-size: 1.1rem; color: #94a3b8; font-weight: 500; }
-    .kpi-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding: 16px 24px; }
+    .kpi-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; padding: 16px 24px; }
     .kpi { background: #1e293b; border-radius: 8px; padding: 16px; border-left: 3px solid #334155; }
     .kpi .label { font-size: 0.75rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
     .kpi .value { font-size: 1.8rem; font-weight: 700; margin: 4px 0; }
@@ -37,6 +37,11 @@
     <div class="label">Gemeten (laatste)</div>
     <div class="value ok" id="kpi-meting">—</div>
     <div class="sub">geschatte dB(A)</div>
+  </div>
+  <div class="kpi" style="border-left-color:#a78bfa">
+    <div class="label">RIVM model Lden</div>
+    <div class="value" style="color:#a78bfa" id="kpi-rivm">—</div>
+    <div class="sub">Buurt modelschatting 2020</div>
   </div>
   <div class="kpi" style="border-left-color:#3b82f6">
     <div class="label">Norm Lden dag</div>
@@ -72,6 +77,10 @@ async function init() {
   } else {
     document.getElementById("cal-badge").textContent = "gekalibreerd";
     document.getElementById("cal-badge").style.background = "#166534";
+  }
+
+  if (data.rivm_lden !== null && data.rivm_lden !== undefined) {
+    document.getElementById("kpi-rivm").textContent = data.rivm_lden + " dB(A)";
   }
 
   if (meting !== null) {

@@ -7,8 +7,11 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
+import geopandas as gpd
+from shapely.geometry import Point as ShapelyPoint
 from .config import load_config, load_private_location
 from .aggregate import _round_location
+from .source_match import get_rivm_lden
 
 app = FastAPI(title="Geluidsmeter API", version="0.1.0")
 _static_dir = Path(__file__).parent / "static"
@@ -85,17 +88,32 @@ def summary():
     precision_m = _config.get("location", {}).get("public_location_precision_m", 100)
     pub_lat, pub_lon = _round_location(loc["lat"], loc["lon"], precision_m)
 
+    rivm_lden = None
+    rivm_path = Path(_config["outputs"]["external_dir"]) / "rivm" / "geluid_buurt.geojson"
+    if rivm_path.exists():
+        rivm_gdf = gpd.read_file(rivm_path)
+        rivm_lden = get_rivm_lden(ShapelyPoint(loc["lon"], loc["lat"]), rivm_gdf)
+
     return {
         "today": today,
         "rms_dba_latest": rms_dba,
         "calibration_offset_db": offset,
         "calibrated": offset != 0,
         "profile": profile,
-        "history": history[-10080:],  # max 7 dagen × 24h × 60 metingen/uur
+        "history": history[-10080:],
         "norm_lden": 48,
         "norm_lnight": 43,
+        "rivm_lden": rivm_lden,
         "location": {"lat": pub_lat, "lon": pub_lon, "precision_m": precision_m},
     }
+
+
+@app.get("/geodata/rivm")
+def geodata_rivm():
+    p = Path(_config["outputs"]["external_dir"]) / "rivm" / "geluid_buurt.geojson"
+    if not p.exists():
+        return JSONResponse({"type": "FeatureCollection", "features": []})
+    return JSONResponse(json.loads(p.read_text()))
 
 
 @app.get("/geodata/nwb")

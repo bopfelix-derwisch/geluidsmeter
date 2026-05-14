@@ -45,6 +45,22 @@ def identify_sources(nwb_gdf: gpd.GeoDataFrame) -> dict:
     }
 
 
+def get_rivm_lden(location: Point, rivm_gdf: gpd.GeoDataFrame) -> float | None:
+    """Point-in-polygon: haal Lden modelschatting op uit RIVM digibeter buurtlaag."""
+    if rivm_gdf.empty:
+        return None
+    hits = rivm_gdf[rivm_gdf.geometry.contains(location)]
+    if hits.empty:
+        # Fallback: dichtstbijzijnde buurt
+        hits = rivm_gdf.iloc[[rivm_gdf.geometry.distance(location).argmin()]]
+    val = hits.iloc[0].get("geluid")
+    try:
+        f = float(val)
+        return None if pd.isna(f) else round(f, 1)
+    except (TypeError, ValueError):
+        return None
+
+
 def match_cvgg(location: Point, cvgg_gdf: gpd.GeoDataFrame) -> dict:
     """Point-in-polygon: haal Lden/Lnight op voor de meetlocatie."""
     if cvgg_gdf.empty:

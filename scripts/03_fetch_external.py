@@ -29,7 +29,7 @@ def bbox_wgs84_to_rd(bbox_wgs84: tuple) -> tuple:
     return (x0, y0, x1, y1)
 
 
-def fetch_wfs(url: str, typename: str, bbox: tuple, out_path: Path) -> bool:
+def fetch_wfs(url: str, typename: str, bbox: tuple, out_path: Path, srs: str = "EPSG:28992") -> bool:
     """Download WFS GetFeature als GeoJSON. Retourneert True bij succes."""
     minx, miny, maxx, maxy = bbox
     params = {
@@ -38,7 +38,7 @@ def fetch_wfs(url: str, typename: str, bbox: tuple, out_path: Path) -> bool:
         "request": "GetFeature",
         "typeName": typename,
         "outputFormat": "application/json",
-        "bbox": f"{minx},{miny},{maxx},{maxy},EPSG:28992",
+        "bbox": f"{minx},{miny},{maxx},{maxy},{srs}",
         "count": "500",
     }
     try:
@@ -120,6 +120,15 @@ def main():
             print("  ℹ Geluidkaarten niet beschikbaar — normcheck gebruikt alleen kalibratiemeting.")
     else:
         print(f"→ Geluidkaarten: al aanwezig ({cvgg_out})")
+
+    # RIVM Digibeter geluid buurt — Lden modelschatting per buurt (WGS84/CRS:84)
+    rivm_out = ext_base / "rivm" / "geluid_buurt.geojson"
+    if force or not rivm_out.exists():
+        print("→ RIVM geluid buurt (Lden modelschatting)...")
+        fetch_wfs("https://data.rivm.nl/geo/wfs", "digibeter:rivm_20220201_geluid_buurt",
+                  bbox_wgs84, rivm_out, srs="CRS:84")
+    else:
+        print(f"→ RIVM geluid buurt: al aanwezig ({rivm_out})")
 
     print("[03_fetch_external] Klaar.")
 
