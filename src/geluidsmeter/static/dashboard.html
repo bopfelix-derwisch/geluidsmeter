@@ -83,9 +83,32 @@ async function init() {
     document.getElementById("kpi-status-block").style.borderLeftColor = ok ? "#4ade80" : "#f87171";
   }
 
-  const map = L.map("map").setView([52.1, 5.1], 13);
+  const loc = data.location || { lat: 52.1, lon: 5.1 };
+  const map = L.map("map").setView([loc.lat, loc.lon], 15);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     { attribution: "© OpenStreetMap" }).addTo(map);
+
+  // BGT wegdelen — grijs
+  const bgt = await fetch("/geodata/bgt").then(r => r.json());
+  L.geoJSON(bgt, {
+    style: { color: "#94a3b8", weight: 1.5, opacity: 0.7, fillOpacity: 0.15 }
+  }).addTo(map);
+
+  // NWB wegvakken — oranje
+  const nwb = await fetch("/geodata/nwb").then(r => r.json());
+  L.geoJSON(nwb, {
+    style: { color: "#fb923c", weight: 2, opacity: 0.8 },
+    onEachFeature: (f, l) => {
+      const p = f.properties || {};
+      const naam = p.straatnaam || p.wegnummer || p.wegvak_id || "weg";
+      l.bindPopup(naam);
+    }
+  }).addTo(map);
+
+  // Meetpunt — groen
+  L.circleMarker([loc.lat, loc.lon], {
+    radius: 8, color: "#4ade80", fillColor: "#4ade80", fillOpacity: 0.9, weight: 2
+  }).addTo(map).bindPopup(`Meetlocatie (±${loc.precision_m}m)`).openPopup();
 
   const history = data.history || [];
   const labels = history.map(h => h.ts.substring(11, 16));

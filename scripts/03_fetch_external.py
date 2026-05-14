@@ -19,6 +19,16 @@ def bbox_from_location(lat: float, lon: float, radius_m: int) -> tuple:
     return (lon - dlon, lat - dlat, lon + dlon, lat + dlat)
 
 
+def bbox_wgs84_to_rd(bbox_wgs84: tuple) -> tuple:
+    """Converteert WGS84 bbox naar EPSG:28992 (RD New)."""
+    from pyproj import Transformer
+    t = Transformer.from_crs("EPSG:4326", "EPSG:28992", always_xy=True)
+    minx, miny, maxx, maxy = bbox_wgs84
+    x0, y0 = t.transform(minx, miny)
+    x1, y1 = t.transform(maxx, maxy)
+    return (x0, y0, x1, y1)
+
+
 def fetch_wfs(url: str, typename: str, bbox: tuple, out_path: Path) -> bool:
     """Download WFS GetFeature als GeoJSON. Retourneert True bij succes."""
     minx, miny, maxx, maxy = bbox
@@ -28,7 +38,7 @@ def fetch_wfs(url: str, typename: str, bbox: tuple, out_path: Path) -> bool:
         "request": "GetFeature",
         "typeName": typename,
         "outputFormat": "application/json",
-        "bbox": f"{minx},{miny},{maxx},{maxy},EPSG:4326",
+        "bbox": f"{minx},{miny},{maxx},{maxy},EPSG:28992",
         "count": "500",
     }
     try:
@@ -76,17 +86,19 @@ def main():
     config = load_config()
     loc = load_private_location(config)
     src = config["sources"]
-    bbox = bbox_from_location(loc["lat"], loc["lon"], src["wfs_bbox_m"])
+    bbox_wgs84 = bbox_from_location(loc["lat"], loc["lon"], src["wfs_bbox_m"])
+    bbox_rd = bbox_wgs84_to_rd(bbox_wgs84)
     ext_base = Path(config["outputs"]["external_dir"])
     force = args.force or src.get("force_refresh", False)
 
-    print(f"[03_fetch_external] bbox={tuple(round(x, 6) for x in bbox)}, radius={src['wfs_bbox_m']}m")
+    print(f"[03_fetch_external] bbox WGS84={tuple(round(x, 6) for x in bbox_wgs84)}, radius={src['wfs_bbox_m']}m")
+    print(f"[03_fetch_external] bbox RD={tuple(round(x, 1) for x in bbox_rd)}")
 
     # NWB Wegen — wegtype context
     nwb_out = ext_base / "atlas" / "nwb_wegvakken.geojson"
     if force or not nwb_out.exists():
         print("→ NWB Wegen (wegvakken)...")
-        fetch_wfs(src["nwb_wfs_url"], "nwbwegen:wegvakken", bbox, nwb_out)
+        fetch_wfs(src["nwb_wfs_url"], "nwbwegen:wegvakken", bbox_rd, nwb_out)
     else:
         print(f"→ NWB Wegen: al aanwezig ({nwb_out})")
 
@@ -94,7 +106,7 @@ def main():
     bgt_out = ext_base / "bgt" / "bgt_wegdeel.geojson"
     if force or not bgt_out.exists():
         print("→ BGT Wegdeel...")
-        fetch_bgt_ogcapi(src["bgt_ogcapi_url"], "wegdeel", bbox, bgt_out)
+        fetch_bgt_ogcapi(src["bgt_ogcapi_url"], "wegdeel", bbox_wgs84, bgt_out)
     else:
         print(f"→ BGT: al aanwezig ({bgt_out})")
 
@@ -103,7 +115,7 @@ def main():
     if force or not cvgg_out.exists():
         print("→ Geluidkaarten IenW (Lden)...")
         ok = fetch_wfs(src["geluidkaarten_wfs_url"], "geluidsbelastingkaarten:geluidzone",
-                       bbox, cvgg_out)
+                       bbox_rd, cvgg_out)
         if not ok:
             print("  ℹ Geluidkaarten niet beschikbaar — normcheck gebruikt alleen kalibratiemeting.")
     else:

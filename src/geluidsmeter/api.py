@@ -7,7 +7,8 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from .config import load_config
+from .config import load_config, load_private_location
+from .aggregate import _round_location
 
 app = FastAPI(title="Geluidsmeter API", version="0.1.0")
 _static_dir = Path(__file__).parent / "static"
@@ -80,6 +81,10 @@ def summary():
                 history.append({"ts": row["ts"], "rms_dbfs": row["rms_dbfs"],
                                  "dba_est": round(row["rms_dbfs"] + offset, 1)})
 
+    loc = load_private_location(_config)
+    precision_m = _config.get("location", {}).get("public_location_precision_m", 100)
+    pub_lat, pub_lon = _round_location(loc["lat"], loc["lon"], precision_m)
+
     return {
         "today": today,
         "rms_dba_latest": rms_dba,
@@ -89,7 +94,24 @@ def summary():
         "history": history[-10080:],  # max 7 dagen × 24h × 60 metingen/uur
         "norm_lden": 48,
         "norm_lnight": 43,
+        "location": {"lat": pub_lat, "lon": pub_lon, "precision_m": precision_m},
     }
+
+
+@app.get("/geodata/nwb")
+def geodata_nwb():
+    p = Path(_config["outputs"]["external_dir"]) / "atlas" / "nwb_wegvakken.geojson"
+    if not p.exists():
+        return JSONResponse({"type": "FeatureCollection", "features": []})
+    return JSONResponse(json.loads(p.read_text()))
+
+
+@app.get("/geodata/bgt")
+def geodata_bgt():
+    p = Path(_config["outputs"]["external_dir"]) / "bgt" / "bgt_wegdeel.geojson"
+    if not p.exists():
+        return JSONResponse({"type": "FeatureCollection", "features": []})
+    return JSONResponse(json.loads(p.read_text()))
 
 
 @app.get("/dashboard", response_class=HTMLResponse)
