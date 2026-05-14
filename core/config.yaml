@@ -16,6 +16,8 @@ location:
   private_location_file: "core/location_private.yaml"
   publish_exact_location: false
   public_location_precision_m: 100
+  public_name: "Archipelbuurt, Den Haag"
+  public_id: "archipelbuurt-denhaag"
   crs: "EPSG:4326"
 
 features:
