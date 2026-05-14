@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Geluidsmeting</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0;
+           min-height: 100dvh; display: flex; flex-direction: column;
+           align-items: center; justify-content: center; padding: 24px 16px; }
+    h1 { font-size: 1.2rem; font-weight: 600; color: #94a3b8; margin-bottom: 24px; text-align: center; }
+    .card { background: #1e293b; border-radius: 12px; padding: 24px; width: 100%; max-width: 360px; }
+    .label { font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+    .waarde-groot { font-size: 4rem; font-weight: 700; color: #4ade80; text-align: center;
+                    line-height: 1; margin: 8px 0 4px; }
+    .eenheid { font-size: 0.9rem; color: #64748b; text-align: center; margin-bottom: 16px; }
+    .balk-wrap { background: #0f172a; border-radius: 6px; height: 10px; margin-bottom: 20px; overflow: hidden; }
+    .balk { height: 100%; width: 0%; border-radius: 6px; background: #4ade80;
+            transition: width .15s, background .15s; }
+    .norm-lijn { display: flex; justify-content: flex-end; padding-right: 4px;
+                 font-size: 0.65rem; color: #475569; margin-top: -16px; margin-bottom: 12px; }
+    input[type=text] { width: 100%; background: #0f172a; border: 1px solid #334155;
+                       border-radius: 8px; padding: 10px 12px; color: #e2e8f0;
+                       font-size: 0.9rem; margin-bottom: 12px; }
+    input[type=text]::placeholder { color: #475569; }
+    .gps { font-size: 0.82rem; color: #64748b; margin-bottom: 16px; min-height: 20px; }
+    button { width: 100%; background: #3b82f6; color: white; border: none; border-radius: 8px;
+             padding: 14px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    button:disabled { background: #1e3a5f; color: #475569; cursor: not-allowed; }
+    .bevestiging { margin-top: 12px; font-size: 0.85rem; color: #4ade80;
+                   text-align: center; display: none; }
+    .disclaimer { margin-top: 12px; font-size: 0.75rem; color: #f59e0b;
+                  background: #1c1a07; border-radius: 6px; padding: 8px 10px; }
+    .fout { margin-top: 8px; font-size: 0.8rem; color: #f87171; display: none; }
+    .geen-token { text-align: center; color: #f87171; padding: 24px; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+<h1>Geluidsmeting</h1>
+<div class="card" id="hoofd-card">
+  <div class="label">Gemeten geluidsniveau</div>
+  <div class="waarde-groot" id="waarde">—</div>
+  <div class="eenheid">dB(A)</div>
+  <div class="balk-wrap">
+    <div class="balk" id="balk"></div>
+  </div>
+  <div class="norm-lijn">norm 48 dB(A)</div>
+
+  <div class="label" style="margin-top:4px">Locatienaam (optioneel)</div>
+  <input type="text" id="naam" placeholder="bijv. Binnenhof, Den Haag">
+
+  <div class="gps" id="gps-status">📍 GPS ophalen…</div>
+
+  <button id="insturen-btn" disabled onclick="insturen()">Insturen</button>
+  <div class="bevestiging" id="bevestiging"></div>
+  <div class="fout" id="fout"></div>
+
+  <div class="disclaimer" id="disclaimer" style="display:none">
+    ⚠ Geen calibratie-offset — meting wordt opgeslagen als ongekalibreerd.
+    Voeg <code>?offset=90.7</code> toe aan de URL voor gekalibreerde waarden.
+  </div>
+</div>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const token = params.get("token") || "";
+const offset = parseFloat(params.get("offset") || "0");
+const isCalibrated = offset !== 0;
+
+if (!token) {
+  document.getElementById("hoofd-card").innerHTML =
+    '<div class="geen-token">Geen token — gebruik de link die je gekregen hebt.<br><br>' +
+    'Voorbeeld: <code>/meten?token=geluidsmeter-mobiel&amp;offset=90.7</code></div>';
+}
+
+if (!isCalibrated && token) {
+  document.getElementById("disclaimer").style.display = "block";
+}
+
+let dbfsValue = -120;
+let gpsCoords = null;
+
+async function startMic() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    const ctx = new AudioContext();
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    source.connect(analyser);
+    const buf = new Float32Array(analyser.fftSize);
+    function tick() {
+      analyser.getFloatTimeDomainData(buf);
+      const rms = Math.sqrt(buf.reduce((s, v) => s + v * v, 0) / buf.length);
+      dbfsValue = rms > 0 ? 20 * Math.log10(rms) : -120;
+      const dba = isCalibrated ? Math.round((dbfsValue + offset) * 10) / 10 : null;
+      updateDisplay(dba);
+      requestAnimationFrame(tick);
+    }
+    tick();
+  } catch (e) {
+    document.getElementById("waarde").textContent = "mic?";
+  }
+}
+
+function updateDisplay(dba) {
+  const el = document.getElementById("waarde");
+  const balk = document.getElementById("balk");
+  if (dba !== null) {
+    el.textContent = dba.toFixed(1);
+    el.style.color = dba > 48 ? "#fb923c" : "#4ade80";
+    const pct = Math.min(100, Math.max(0, (dba / 80) * 100));
+    balk.style.width = pct + "%";
+    balk.style.background = dba > 48 ? "#fb923c" : "#4ade80";
+  } else {
+    el.textContent = "—";
+  }
+}
+
+navigator.geolocation.getCurrentPosition(
+  pos => {
+    gpsCoords = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+    document.getElementById("gps-status").textContent =
+      `📍 ${gpsCoords.lat.toFixed(5)}, ${gpsCoords.lon.toFixed(5)} ✓`;
+    document.getElementById("gps-status").style.color = "#4ade80";
+    if (token) document.getElementById("insturen-btn").disabled = false;
+  },
+  () => {
+    document.getElementById("gps-status").textContent = "📍 GPS niet beschikbaar";
+    document.getElementById("gps-status").style.color = "#f87171";
+  },
+  { enableHighAccuracy: true, timeout: 15000 }
+);
+
+async function insturen() {
+  const naam = document.getElementById("naam").value.trim() || "Mobiele meting";
+  const dba = isCalibrated ? Math.round((dbfsValue + offset) * 10) / 10 : null;
+  const btn = document.getElementById("insturen-btn");
+  const foutEl = document.getElementById("fout");
+  btn.disabled = true;
+  btn.textContent = "Bezig…";
+  foutEl.style.display = "none";
+  try {
+    const resp = await fetch("/api/submit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ dba, lat: gpsCoords.lat, lon: gpsCoords.lon, naam }),
+    });
+    if (resp.ok) {
+      const tijd = new Date().toLocaleTimeString("nl-NL", { hour: "2-digit", minute: "2-digit" });
+      const bev = document.getElementById("bevestiging");
+      bev.textContent = `✓ Meting verstuurd (${tijd})`;
+      bev.style.display = "block";
+      setTimeout(() => { btn.disabled = false; btn.textContent = "Insturen"; }, 5000);
+    } else {
+      foutEl.textContent = resp.status === 401 ? "Fout: ongeldig token." : `Fout ${resp.status}.`;
+      foutEl.style.display = "block";
+      btn.disabled = false;
+      btn.textContent = "Insturen";
+    }
+  } catch (e) {
+    foutEl.textContent = "Netwerkfout — probeer opnieuw.";
+    foutEl.style.display = "block";
+    btn.disabled = false;
+    btn.textContent = "Insturen";
+  }
+}
+
+if (token) startMic();
+</script>
+</body>
+</html>
