@@ -79,25 +79,31 @@ def _mobile_location_entries() -> list[dict]:
             line = line.strip()
             if not line:
                 continue
-            rec = json.loads(line)
-            dba = rec.get("dba")
-            norm_status = None
-            if dba is not None:
-                norm_status = "binnen_norm" if dba <= norm_lden else "boven_norm"
-            entries.append({
-                "id": rec["id"],
-                "naam": rec.get("naam", "Mobiele meting"),
-                "lat": rec["lat"],
-                "lon": rec["lon"],
-                "precision_m": 20,
-                "lden_gemeten": dba,
-                "rivm_lden": None,
-                "norm_lden": norm_lden,
-                "norm_status": norm_status,
-                "laatste_meting": rec["ts"],
-                "kwaliteit": rec.get("kwaliteit", "prototype_indicatief_niet_juridisch"),
-                "source": "mobile",
-            })
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            try:
+                dba = rec.get("dba")
+                norm_status = None
+                if dba is not None:
+                    norm_status = "binnen_norm" if dba <= norm_lden else "boven_norm"
+                entries.append({
+                    "id": rec["id"],
+                    "naam": rec.get("naam", "Mobiele meting"),
+                    "lat": rec["lat"],
+                    "lon": rec["lon"],
+                    "precision_m": 20,
+                    "lden_gemeten": dba,
+                    "rivm_lden": None,
+                    "norm_lden": norm_lden,
+                    "norm_status": norm_status,
+                    "laatste_meting": rec["ts"],
+                    "kwaliteit": rec.get("kwaliteit", "prototype_indicatief_niet_juridisch"),
+                    "source": "mobile",
+                })
+            except KeyError:
+                continue
     return entries
 
 
