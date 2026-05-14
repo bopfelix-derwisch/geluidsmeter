@@ -20,11 +20,11 @@ Dan: `core/config.yaml`
 
 ## Repo-locatie
 
-| Repo | Pad |
-|------|-----|
-| Geluidsmeter | `/home/bob/Geluidsmeter` |
+| Repo | Pad | Remote |
+|------|-----|--------|
+| Geluidsmeter | `/home/bob/Geluidsmeter` | https://github.com/bopfelix-derwisch/geluidsmeter |
 
-Geen remote push — lokaal project.
+Push met: `git push origin master`
 
 ---
 
@@ -58,10 +58,10 @@ C922 USB-mic (plughw:CARD=Webcam,DEV=0)
 ## Sprint status
 
 - ✅ **Sprint 0:** structuur, config, code, systemd units, git init
-- ⏭️ **Sprint 1:** NVMe dirs (sudo), venv, packages, eerste meting testen
-- ⏭️ **Sprint 2:** aggregatie + GeoParquet
-- ⏭️ **Sprint 3:** Portolan installeren + catalogus
-- ⏭️ **Sprint 4:** bronnenmatch Atlas/CVGG/PDOK
+- ✅ **Sprint 1:** NVMe dirs, venv, packages, C922 mic werkend (32kHz, gain 3/15)
+- ✅ **Sprint 2:** aggregatie + GeoParquet
+- ✅ **Sprint 3:** Portolan installeren + catalogus
+- ✅ **Sprint 4:** bronnenmatch Atlas/CVGG/PDOK + dashboard
 - ⏭️ **Sprint 5:** demo
 
 ---
