@@ -62,7 +62,7 @@ C922 USB-mic (plughw:CARD=Webcam,DEV=0)
 - ✅ **Sprint 2:** aggregatie + GeoParquet
 - ✅ **Sprint 3:** Portolan installeren + catalogus
 - ✅ **Sprint 4:** bronnenmatch Atlas/CVGG/PDOK + dashboard
-- ⏭️ **Sprint 5:** demo
+- ✅ **Sprint 5:** publieke demo — geluid.felixisfelix.com via Cloudflare Tunnel
 
 ---
 
