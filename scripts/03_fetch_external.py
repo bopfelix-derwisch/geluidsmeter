@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""Download WFS-data van PDOK voor de meetlocatie-bbox. Eenmalig uitvoeren."""
+import sys
+import json
+import math
+import argparse
+import requests
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from geluidsmeter.config import load_config, load_private_location
+
+
+def bbox_from_location(lat: float, lon: float, radius_m: int) -> tuple:
+    """Berekent (minx, miny, maxx, maxy) bbox in WGS84."""
+    dlat = radius_m / 111_320
+    dlon = radius_m / (111_320 * math.cos(math.radians(lat)))
+    return (lon - dlon, lat - dlat, lon + dlon, lat + dlat)
+
+
+def fetch_wfs(url: str, typename: str, bbox: tuple, out_path: Path) -> bool:
+    """Download WFS GetFeature als GeoJSON. Retourneert True bij succes."""
+    minx, miny, maxx, maxy = bbox
+    params = {
+        "service": "WFS",
+        "version": "2.0.0",
+        "request": "GetFeature",
+        "typeName": typename,
+        "outputFormat": "application/json",
+        "bbox": f"{minx},{miny},{maxx},{maxy},EPSG:4326",
+        "count": "500",
+    }
+    try:
+        r = requests.get(url, params=params, timeout=30)
+        r.raise_for_status()
+        data = r.json()
+        if not data.get("features"):
+            print(f"  [leeg] {typename} — geen features in bbox")
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(data, ensure_ascii=False))
+        print(f"  [ok] {len(data.get('features', []))} features → {out_path}")
+        return True
+    except Exception as e:
+        print(f"  [fout] {typename}: {e}")
+        return False
+
+
+def fetch_bgt_ogcapi(base_url: str, collection: str, bbox: tuple, out_path: Path) -> bool:
+    """Download BGT-collectie via OGC API Features (GeoJSON)."""
+    minx, miny, maxx, maxy = bbox
+    url = f"{base_url}/collections/{collection}/items"
+    params = {"bbox": f"{minx},{miny},{maxx},{maxy}", "limit": 500, "f": "json"}
+    try:
+        r = requests.get(url, params=params, timeout=30)
+        r.raise_for_status()
+        data = r.json()
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        out_path.write_text(json.dumps(data, ensure_ascii=False))
+        print(f"  [ok] {len(data.get('features', []))} features → {out_path}")
+        return True
+    except Exception as e:
+        print(f"  [fout] BGT {collection}: {e}")
+        return False
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Download externe geluidsbrondata via PDOK WFS")
+    parser.add_argument("--force", action="store_true", help="Overschrijf bestaande bestanden")
+    args = parser.parse_args()
+
+    config = load_config()
+    loc = load_private_location(config)
+    src = config["sources"]
+    bbox = bbox_from_location(loc["lat"], loc["lon"], src["wfs_bbox_m"])
+    ext_base = Path("/mnt/nvme/geluidsmeter/data/external")
+
+    print(f"[03_fetch_external] bbox={tuple(round(x, 6) for x in bbox)}, radius={src['wfs_bbox_m']}m")
+
+    # NWB Wegen — wegtype context
+    nwb_out = ext_base / "atlas" / "nwb_wegvakken.geojson"
+    if args.force or not nwb_out.exists():
+        print("→ NWB Wegen (wegvakken)...")
+        fetch_wfs(src["nwb_wfs_url"], "nwbwegen:wegvakken", bbox, nwb_out)
+    else:
+        print(f"→ NWB Wegen: al aanwezig ({nwb_out})")
+
+    # BGT Wegdeel — infrastructuurtype
+    bgt_out = ext_base / "bgt" / "bgt_wegdeel.geojson"
+    if args.force or not bgt_out.exists():
+        print("→ BGT Wegdeel...")
+        fetch_bgt_ogcapi(src["bgt_ogcapi_url"], "wegdeel", bbox, bgt_out)
+    else:
+        print(f"→ BGT: al aanwezig ({bgt_out})")
+
+    # Geluidkaarten IenW — Lden (optioneel, service kan ontbreken)
+    cvgg_out = ext_base / "cvgg" / "geluidkaart_lden.geojson"
+    if args.force or not cvgg_out.exists():
+        print("→ Geluidkaarten IenW (Lden)...")
+        ok = fetch_wfs(src["geluidkaarten_wfs_url"], "geluidsbelastingkaarten:geluidzone",
+                       bbox, cvgg_out)
+        if not ok:
+            print("  ℹ Geluidkaarten niet beschikbaar — normcheck gebruikt alleen kalibratiemeting.")
+    else:
+        print(f"→ Geluidkaarten: al aanwezig ({cvgg_out})")
+
+    print("[03_fetch_external] Klaar.")
+
+
+if __name__ == "__main__":
+    main()
