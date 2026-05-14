@@ -65,6 +65,42 @@ def _latest_feature() -> dict | None:
     return json.loads(last_line) if last_line else None
 
 
+def _mobile_location_entries() -> list[dict]:
+    fp_str = _config.get("mobile", {}).get("measurements_file", "")
+    if not fp_str:
+        return []
+    fp = Path(fp_str)
+    if not fp.exists():
+        return []
+    norm_lden = 48
+    entries = []
+    with open(fp) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            rec = json.loads(line)
+            dba = rec.get("dba")
+            norm_status = None
+            if dba is not None:
+                norm_status = "binnen_norm" if dba <= norm_lden else "boven_norm"
+            entries.append({
+                "id": rec["id"],
+                "naam": rec.get("naam", "Mobiele meting"),
+                "lat": rec["lat"],
+                "lon": rec["lon"],
+                "precision_m": 20,
+                "lden_gemeten": dba,
+                "rivm_lden": None,
+                "norm_lden": norm_lden,
+                "norm_status": norm_status,
+                "laatste_meting": rec["ts"],
+                "kwaliteit": rec.get("kwaliteit", "prototype_indicatief_niet_juridisch"),
+                "source": "mobile",
+            })
+    return entries
+
+
 @app.get("/")
 def root():
     return RedirectResponse(url="/public")
