@@ -86,7 +86,7 @@ def summary():
         "calibration_offset_db": offset,
         "calibrated": offset != 0,
         "profile": profile,
-        "history": history[-168:],
+        "history": history[-10080:],  # max 7 dagen × 24h × 60 metingen/uur
         "norm_lden": 48,
         "norm_lnight": 43,
     }
