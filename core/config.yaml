@@ -60,10 +60,8 @@ mobile:
 leefomgevinglab:
   cache_dir: "/mnt/nvme/geluidsmeter/data/cache"
   rev:
-    # OGC API Features endpoint van REV op PDOK. Bevestig base_url + collection
-    # via {ogc_base_url}/collections (zie Task 2, Step 0) voordat je hierop leunt.
-    ogc_base_url: "https://api.pdok.nl/rws/rev/ogc/v1"
-    collection: "inrichtingen"
+    ogc_base_url: "https://api.pdok.nl/rws/productie-en-industrie-productiefaciliteiten/ogc/v1"
+    collection: "production_facility_f"
     max_features: 500
   llm:
     base_url: "http://localhost:8080/v1"
