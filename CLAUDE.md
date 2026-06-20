@@ -1,5 +1,8 @@
 # Geluidsmeter — Claude Code instructies
 
+> **Machine-breed:** `~/.claude/CLAUDE.md` (gedeelde faciliteiten + valkuilen) en `ORIN3_SYSTEEM.md` — niet hier herhalen.
+> **Domein:** Edge & Geo (deelt geo-basisdata met `waterlab`). **Start via** `orin3` → window `geluid` (pad `/mnt/nvme/workspaces/Geluidsmeter`) voor consistente memory.
+
 Lees altijd eerst: `CLAUDE_NOTES.md`
 Dan: `core/config.yaml`
 
@@ -63,6 +66,7 @@ C922 USB-mic (plughw:CARD=Webcam,DEV=0)
 - ✅ **Sprint 3:** Portolan installeren + catalogus
 - ✅ **Sprint 4:** bronnenmatch Atlas/CVGG/PDOK + dashboard
 - ✅ **Sprint 5:** publieke demo — geluid.felixisfelix.com via Cloudflare Tunnel
+- 🚧 **LeefomgevingLab fundering:** connector-laag (BaseConnector) + UC-04 REV-viewer met routes `/viewer`, `/api/rev/features` (PDOK OGC API), `/api/duiding` (lokale Qwen duiding). Nieuwe code onder `src/leefomgevinglab/` (connectors/ + usecases/); geluid wordt één use-case daar (gepland).
 
 ---
 
