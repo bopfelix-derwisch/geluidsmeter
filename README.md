@@ -56,6 +56,10 @@ bash scripts/05_run_api.sh
 | Derwisch LLM | 8080/8081 |
 | felix-nazaten upload | 8791 |
 
+## LeefomgevingLab — toekomstige architectuur
+
+Dit project groeit uit tot **LeefomgevingLab**, een edge geo-lab op Jetson Orin. Geluid is één van meerdere use-cases. De REV-viewer (UC-04) is beschikbaar op `/viewer` met features uit PDOK OGC API (productiefaciliteiten). Raadpleeg `LeefomgevingLab architectuuropzet v0_3.md` en `docs/superpowers/specs/2026-06-20-leefomgevinglab-fundering-design.md` voor architectuur; zie `docs/superpowers/plans/2026-06-20-leefomgevinglab-fundering-uc04.md` voor implementatieplan.
+
 ## Privacy
 
 - `store_raw_audio: false` — geen ruwe audio op disk

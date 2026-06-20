@@ -56,3 +56,18 @@ sources:
 mobile:
   submit_token: "geluidsmeter-mobiel"   # verander dit naar een echt wachtwoord
   measurements_file: "/mnt/nvme/geluidsmeter/data/mobile_measurements.jsonl"
+
+leefomgevinglab:
+  cache_dir: "/mnt/nvme/geluidsmeter/data/cache"
+  rev:
+    ogc_base_url: "https://api.pdok.nl/rws/productie-en-industrie-productiefaciliteiten/ogc/v1"
+    collection: "production_facility_f"
+    max_features: 500
+  llm:
+    base_url: "http://localhost:8080/v1"
+    model: "qwen2.5-32b"
+    timeout_s: 60
+  viewer:
+    center_lat: 52.08
+    center_lon: 4.29
+    zoom: 13

@@ -14,6 +14,9 @@ from shapely.geometry import Point as ShapelyPoint
 from .config import load_config, load_private_location
 from .aggregate import _round_location
 from .source_match import get_rivm_lden
+from leefomgevinglab.connectors.base import ConnectorError
+from leefomgevinglab.connectors.rev import RevConnector
+from leefomgevinglab.usecases.rev_viewer import service as rev_service
 
 
 class MobileSubmission(BaseModel):
@@ -284,3 +287,49 @@ def public_page():
 @app.get("/meten", response_class=HTMLResponse)
 def meten_page():
     return (_static_dir / "meten.html").read_text()
+
+
+def _rev_connector() -> RevConnector:
+    ll = _config.get("leefomgevinglab", {})
+    rev = ll.get("rev", {})
+    return RevConnector(
+        base_url=rev.get("ogc_base_url", ""),
+        collection=rev.get("collection", ""),
+        max_features=rev.get("max_features", 500),
+        cache_dir=ll.get("cache_dir", "/tmp/llab_cache"),
+    )
+
+
+@app.get("/api/rev/features")
+def api_rev_features(bbox: str):
+    try:
+        return _rev_connector().features(bbox)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except ConnectorError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+class DuidingRequest(BaseModel):
+    properties: dict
+
+
+@app.post("/api/duiding")
+def api_duiding(req: DuidingRequest):
+    ll = _config.get("leefomgevinglab", {})
+    llm = ll.get("llm", {})
+    try:
+        return rev_service.duiding(
+            req.properties,
+            llm_base_url=llm.get("base_url", "http://localhost:8080/v1"),
+            model=llm.get("model", "qwen2.5-32b"),
+            timeout_s=llm.get("timeout_s", 60),
+        )
+    except ConnectorError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+
+
+@app.get("/viewer", response_class=HTMLResponse)
+def viewer_page():
+    viewer_html = Path(__file__).parent.parent / "leefomgevinglab" / "viewer" / "static" / "viewer.html"
+    return viewer_html.read_text()

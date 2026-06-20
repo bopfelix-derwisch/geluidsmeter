@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LeefomgevingLab — REV-viewer</title>
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    #map { position: absolute; inset: 0 360px 0 0; }
+    #panel { position: absolute; top: 0; right: 0; bottom: 0; width: 360px;
+             box-sizing: border-box; padding: 16px; overflow-y: auto;
+             background: #f7f7f8; border-left: 1px solid #ddd; }
+    h1 { font-size: 16px; margin: 0 0 8px; }
+    .muted { color: #666; font-size: 12px; }
+    button { margin-top: 8px; padding: 8px 12px; cursor: pointer; }
+    pre { white-space: pre-wrap; font-size: 12px; background: #fff; padding: 8px; border: 1px solid #eee; }
+    .disc { color: #884; font-size: 11px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="panel">
+    <h1>REV-viewer</h1>
+    <p class="muted">Klik op een object voor de details en AI-duiding. Bron: REV via PDOK OGC API Features.</p>
+    <div id="info"><p class="muted">Nog niets geselecteerd.</p></div>
+  </div>
+  <script>
+    const map = new maplibregl.Map({
+      container: "map",
+      style: {
+        version: 8,
+        sources: {
+          brt: {
+            type: "raster",
+            tiles: ["https://service.pdok.nl/brt/achtergrondkaart/wmts/v2_0/standaard/EPSG:3857/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            attribution: "PDOK BRT-achtergrondkaart"
+          }
+        },
+        layers: [{ id: "brt", type: "raster", source: "brt" }]
+      },
+      center: [4.29, 52.08],
+      zoom: 13
+    });
+
+    let selected = null;
+
+    async function loadRev() {
+      const b = map.getBounds();
+      const bbox = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map(n => n.toFixed(5)).join(",");
+      let fc;
+      try {
+        const r = await fetch("/api/rev/features?bbox=" + bbox);
+        if (!r.ok) throw new Error("status " + r.status);
+        fc = await r.json();
+      } catch (e) {
+        document.getElementById("info").innerHTML =
+          '<p class="muted">REV-bron tijdelijk niet beschikbaar.</p>';
+        return;
+      }
+      if (map.getSource("rev")) {
+        map.getSource("rev").setData(fc);
+      } else {
+        map.addSource("rev", { type: "geojson", data: fc });
+        // REV-objecten zijn vlakken (productiefaciliteit-contouren)
+        map.addLayer({ id: "rev-fill", type: "fill", source: "rev",
+          paint: { "fill-color": "#d7263d", "fill-opacity": 0.35 } });
+        map.addLayer({ id: "rev-line", type: "line", source: "rev",
+          paint: { "line-color": "#d7263d", "line-width": 1.5 } });
+        map.on("click", "rev-fill", (e) => showFeature(e.features[0]));
+        map.on("mouseenter", "rev-fill", () => map.getCanvas().style.cursor = "pointer");
+        map.on("mouseleave", "rev-fill", () => map.getCanvas().style.cursor = "");
+      }
+    }
+
+    function showFeature(f) {
+      selected = f.properties || {};
+      const rows = Object.entries(selected)
+        .map(([k, v]) => `<b>${k}</b>: ${v}`).join("<br>");
+      document.getElementById("info").innerHTML =
+        `<pre>${rows}</pre><button id="duid">AI-duiding</button><div id="duiding"></div>`;
+      document.getElementById("duid").onclick = duid;
+    }
+
+    async function duid() {
+      const out = document.getElementById("duiding");
+      out.textContent = "Bezig…";
+      try {
+        const r = await fetch("/api/duiding", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ properties: selected })
+        });
+        if (!r.ok) throw new Error("status " + r.status);
+        const d = await r.json();
+        out.innerHTML = `<p>${d.duiding}</p><p class="muted">${d.bron}</p><p class="disc">${d.disclaimer}</p>`;
+      } catch (e) {
+        out.innerHTML = '<p class="muted">AI-duiding tijdelijk niet beschikbaar.</p>';
+      }
+    }
+
+    map.on("load", loadRev);
+    map.on("moveend", loadRev);
+  </script>
+</body>
+</html>
