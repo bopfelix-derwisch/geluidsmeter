@@ -304,6 +304,8 @@ def _rev_connector() -> RevConnector:
 def api_rev_features(bbox: str):
     try:
         return _rev_connector().features(bbox)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
     except ConnectorError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
 

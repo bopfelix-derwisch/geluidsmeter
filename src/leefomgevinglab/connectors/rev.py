@@ -22,6 +22,8 @@ class RevConnector(BaseConnector):
 
     def features(self, bbox: str) -> dict:
         parts = [p.strip() for p in bbox.split(",")]
+        if len(parts) != 4:
+            raise ValueError("bbox moet 4 komma-gescheiden waarden zijn: minLon,minLat,maxLon,maxLat")
         # invoer minLon,minLat,maxLon,maxLat -> bron wil minLat,minLon,maxLat,maxLon
         api_bbox = ",".join([parts[1], parts[0], parts[3], parts[2]])
         url = f"{self.base_url}/collections/{self.collection}/items"
@@ -29,8 +31,14 @@ class RevConnector(BaseConnector):
         data = self.get_json(url, params)
         if not isinstance(data, dict) or data.get("type") != "FeatureCollection":
             return {"type": "FeatureCollection", "features": []}
+        if isinstance(data.get("bbox"), list) and len(data["bbox"]) == 4:
+            b = data["bbox"]
+            data["bbox"] = [b[1], b[0], b[3], b[2]]
         for feat in data.get("features", []):
             geom = feat.get("geometry")
             if geom and geom.get("coordinates") is not None:
                 geom["coordinates"] = _swap_positions(geom["coordinates"])
+            fb = feat.get("bbox")
+            if isinstance(fb, list) and len(fb) == 4:
+                feat["bbox"] = [fb[1], fb[0], fb[3], fb[2]]
         return data

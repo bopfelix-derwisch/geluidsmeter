@@ -41,6 +41,16 @@ def test_rev_features_bron_down_503(monkeypatch):
     assert r.status_code == 503
 
 
+def test_rev_features_malformed_bbox_400(monkeypatch):
+    client = _client_with_config(monkeypatch)
+    class _FakeRev:
+        def features(self, bbox):
+            raise ValueError("bad bbox")
+    monkeypatch.setattr(api, "_rev_connector", lambda: _FakeRev())
+    r = client.get("/api/rev/features", params={"bbox": "4,52,4.5"})
+    assert r.status_code == 400
+
+
 def test_duiding_ok(monkeypatch):
     client = _client_with_config(monkeypatch)
     monkeypatch.setattr(
