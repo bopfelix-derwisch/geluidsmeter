@@ -194,10 +194,12 @@ Voeg aan het eind van `core/config.yaml` toe:
 leefomgevinglab:
   cache_dir: "/mnt/nvme/geluidsmeter/data/cache"
   rev:
-    # OGC API Features endpoint van REV op PDOK. Bevestig base_url + collection
-    # via {ogc_base_url}/collections (zie Task 2, Step 0) voordat je hierop leunt.
-    ogc_base_url: "https://api.pdok.nl/rws/rev/ogc/v1"
-    collection: "inrichtingen"
+    # REV (externe veiligheid) op PDOK als OGC API Features. Geverifieerd 2026-06-20:
+    # INSPIRE-geharmoniseerde "Productiefaciliteiten". Let op: deze service levert
+    # geometrie in EPSG:4258 (lat,lon-asvolgorde) en negeert bbox-crs — de connector
+    # zet bbox en coordinaten om (zie Task 2).
+    ogc_base_url: "https://api.pdok.nl/rws/productie-en-industrie-productiefaciliteiten/ogc/v1"
+    collection: "production_facility_f"
     max_features: 500
   llm:
     base_url: "http://localhost:8080/v1"
@@ -231,14 +233,19 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 - Produces:
   - `class RevConnector(BaseConnector)` met constructor
     `RevConnector(base_url: str, collection: str, max_features: int = 500, cache_dir: str = ..., timeout: float = 10.0, cache_ttl: int = 3600)`
-  - methode `features(bbox: str) -> dict` die een GeoJSON FeatureCollection teruggeeft
-    (`{"type": "FeatureCollection", "features": [...]}`). `bbox` = `"minLon,minLat,maxLon,maxLat"`.
+  - methode `features(bbox: str) -> dict` die een **schone** GeoJSON FeatureCollection
+    (CRS84, lon,lat) teruggeeft. `bbox`-invoer = `"minLon,minLat,maxLon,maxLat"` (CRS84,
+    zoals MapLibre `getBounds()` levert).
 
-- [ ] **Step 0: Verifieer het echte REV-endpoint (handmatig, geen code)**
+**Bron-eigenaardigheid (geverifieerd 2026-06-20, must-handle):** de REV-service levert
+geometrie in **EPSG:4258 met lat,lon-asvolgorde** en negeert `bbox-crs`. Daarom moet de
+connector:
+1. de inkomende lon,lat-bbox omzetten naar lat,lon vóór de API-call
+   (`minLon,minLat,maxLon,maxLat` → `minLat,minLon,maxLat,maxLon`);
+2. in elke teruggegeven geometrie de coördinaten van [lat,lon] naar [lon,lat] omdraaien
+   (recursief; geometrieën zijn Polygon/MultiPolygon).
 
-Run:
-`curl -s "https://api.pdok.nl/rws/rev/ogc/v1/collections" | head -c 2000`
-Doel: bevestig de exacte `collection`-naam (bv. inrichtingen/productiefaciliteiten). Pas zonodig `core/config.yaml` (`leefomgevinglab.rev.ogc_base_url` / `collection`) aan op wat de service teruggeeft. De connector zelf is endpoint-agnostisch; deze stap zet alleen de juiste config-waarden.
+Zo blijft de quirk binnen de connector en krijgt de viewer standaard CRS84-GeoJSON.
 
 - [ ] **Step 1: Schrijf de falende test**
 
@@ -248,23 +255,34 @@ Doel: bevestig de exacte `collection`-naam (bv. inrichtingen/productiefaciliteit
 from leefomgevinglab.connectors.rev import RevConnector
 
 
-def test_features_builds_request_and_returns_fc(tmp_path):
+def test_features_reorders_bbox_and_swaps_coords(tmp_path):
     captured = {}
 
     class _Rev(RevConnector):
         def get_json(self, url, params=None):
             captured["url"] = url
             captured["params"] = params
-            return {"type": "FeatureCollection", "features": [{"id": 1}]}
+            # bron levert lat,lon (EPSG:4258)
+            return {
+                "type": "FeatureCollection",
+                "features": [{
+                    "type": "Feature",
+                    "geometry": {"type": "Polygon",
+                                 "coordinates": [[[52.0, 4.0], [52.1, 4.0], [52.1, 4.2], [52.0, 4.0]]]},
+                    "properties": {"name": "X"},
+                }],
+            }
 
-    c = _Rev(base_url="https://api.pdok.nl/rws/rev/ogc/v1/",
-             collection="inrichtingen", max_features=250, cache_dir=str(tmp_path))
+    c = _Rev(base_url="https://api.pdok.nl/rws/x/ogc/v1/",
+             collection="production_facility_f", max_features=250, cache_dir=str(tmp_path))
     fc = c.features("4.0,52.0,4.5,52.5")
 
-    assert captured["url"] == "https://api.pdok.nl/rws/rev/ogc/v1/collections/inrichtingen/items"
-    assert captured["params"] == {"bbox": "4.0,52.0,4.5,52.5", "f": "json", "limit": 250}
-    assert fc["type"] == "FeatureCollection"
-    assert fc["features"] == [{"id": 1}]
+    assert captured["url"] == "https://api.pdok.nl/rws/x/ogc/v1/collections/production_facility_f/items"
+    # lon,lat-bbox omgezet naar lat,lon voor de bron
+    assert captured["params"] == {"bbox": "52.0,4.0,52.5,4.5", "f": "json", "limit": 250}
+    # teruggegeven coordinaten omgedraaid naar lon,lat
+    assert fc["features"][0]["geometry"]["coordinates"] == [[[4.0, 52.0], [4.0, 52.1], [4.2, 52.1], [4.0, 52.0]]]
+    assert fc["features"][0]["properties"]["name"] == "X"
 
 
 def test_features_non_fc_returns_empty(tmp_path):
@@ -275,20 +293,42 @@ def test_features_non_fc_returns_empty(tmp_path):
     c = _Rev(base_url="https://x", collection="c", cache_dir=str(tmp_path))
     fc = c.features("4.0,52.0,4.5,52.5")
     assert fc == {"type": "FeatureCollection", "features": []}
+
+
+def test_features_handles_missing_geometry(tmp_path):
+    class _Rev(RevConnector):
+        def get_json(self, url, params=None):
+            return {"type": "FeatureCollection",
+                    "features": [{"type": "Feature", "geometry": None, "properties": {}}]}
+
+    c = _Rev(base_url="https://x", collection="c", cache_dir=str(tmp_path))
+    fc = c.features("4.0,52.0,4.5,52.5")
+    assert fc["features"][0]["geometry"] is None
 ```
 
 - [ ] **Step 2: Run test om te zien dat hij faalt**
 
 Run: `PYTHONPATH=src python -m pytest tests/test_rev_connector.py -q`
-Expected: FAIL met `ModuleNotFoundError: No module named 'leefomgevinglab.connectors.rev'`
+Expected: FAIL — assertion-fouten op bbox-volgorde en omgedraaide coördinaten (of `ModuleNotFoundError` als het bestand nog ontbreekt).
 
-- [ ] **Step 3: Schrijf de minimale implementatie**
+- [ ] **Step 3: Schrijf de implementatie**
 
 `src/leefomgevinglab/connectors/rev.py`:
 
 ```python
-"""REV (externe veiligheid) via PDOK OGC API Features."""
+"""REV (externe veiligheid) via PDOK OGC API Features.
+
+De PDOK REV-service (INSPIRE, EPSG:4258) levert lat,lon en negeert bbox-crs.
+Deze connector normaliseert naar schone CRS84 GeoJSON (lon,lat) voor de viewer.
+"""
 from .base import BaseConnector
+
+
+def _swap_positions(coords):
+    """Draai elke positie [lat, lon, ...] om naar [lon, lat, ...] (recursief)."""
+    if coords and isinstance(coords[0], (int, float)):
+        return [coords[1], coords[0]] + list(coords[2:])
+    return [_swap_positions(c) for c in coords]
 
 
 class RevConnector(BaseConnector):
@@ -299,20 +339,33 @@ class RevConnector(BaseConnector):
         self.max_features = max_features
 
     def features(self, bbox: str) -> dict:
+        parts = [p.strip() for p in bbox.split(",")]
+        # invoer minLon,minLat,maxLon,maxLat -> bron wil minLat,minLon,maxLat,maxLon
+        api_bbox = ",".join([parts[1], parts[0], parts[3], parts[2]])
         url = f"{self.base_url}/collections/{self.collection}/items"
-        params = {"bbox": bbox, "f": "json", "limit": self.max_features}
+        params = {"bbox": api_bbox, "f": "json", "limit": self.max_features}
         data = self.get_json(url, params)
         if not isinstance(data, dict) or data.get("type") != "FeatureCollection":
             return {"type": "FeatureCollection", "features": []}
+        for feat in data.get("features", []):
+            geom = feat.get("geometry")
+            if geom and geom.get("coordinates") is not None:
+                geom["coordinates"] = _swap_positions(geom["coordinates"])
         return data
 ```
 
 - [ ] **Step 4: Run test om te zien dat hij slaagt**
 
 Run: `PYTHONPATH=src python -m pytest tests/test_rev_connector.py -q`
-Expected: PASS (2 passed)
+Expected: PASS (3 passed)
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Optionele live-rooktest (best-effort, vereist netwerk)**
+
+Run:
+`PYTHONPATH=src python -c "from leefomgevinglab.connectors.rev import RevConnector; c=RevConnector(base_url='https://api.pdok.nl/rws/productie-en-industrie-productiefaciliteiten/ogc/v1', collection='production_facility_f', max_features=2, cache_dir='/tmp/llab_rev'); fc=c.features('6.45,51.85,6.50,51.87'); print('n=', len(fc['features']), 'eerste coord=', fc['features'][0]['geometry']['coordinates'][0][0] if fc['features'] else None)"`
+Verwacht: `n=` > 0 en de eerste coördinaat in lon,lat-volgorde (lon ~6.x, lat ~51.x). Bij geen netwerk: noteer als concern, niet blokkeren.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add src/leefomgevinglab/connectors/rev.py tests/test_rev_connector.py core/config.yaml
@@ -704,11 +757,14 @@ Maak `src/leefomgevinglab/viewer/__init__.py` als leeg bestand.
         map.getSource("rev").setData(fc);
       } else {
         map.addSource("rev", { type: "geojson", data: fc });
-        map.addLayer({ id: "rev-pts", type: "circle", source: "rev",
-          paint: { "circle-radius": 6, "circle-color": "#d7263d", "circle-stroke-width": 1, "circle-stroke-color": "#fff" } });
-        map.on("click", "rev-pts", (e) => showFeature(e.features[0]));
-        map.on("mouseenter", "rev-pts", () => map.getCanvas().style.cursor = "pointer");
-        map.on("mouseleave", "rev-pts", () => map.getCanvas().style.cursor = "");
+        // REV-objecten zijn vlakken (productiefaciliteit-contouren)
+        map.addLayer({ id: "rev-fill", type: "fill", source: "rev",
+          paint: { "fill-color": "#d7263d", "fill-opacity": 0.35 } });
+        map.addLayer({ id: "rev-line", type: "line", source: "rev",
+          paint: { "line-color": "#d7263d", "line-width": 1.5 } });
+        map.on("click", "rev-fill", (e) => showFeature(e.features[0]));
+        map.on("mouseenter", "rev-fill", () => map.getCanvas().style.cursor = "pointer");
+        map.on("mouseleave", "rev-fill", () => map.getCanvas().style.cursor = "");
       }
     }
 
