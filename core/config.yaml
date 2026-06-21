@@ -59,6 +59,17 @@ mobile:
 
 leefomgevinglab:
   cache_dir: "/mnt/nvme/geluidsmeter/data/cache"
+  rag:
+    embed:
+      base_url: "http://localhost:8082/v1"   # llama.cpp embedding-server (model laden, zie plan Task 3 Step 0)
+      model: "bge-m3"
+    store_dir: "/mnt/nvme/geluidsmeter/data/rag"
+    top_k: 4
+    chunk_chars: 1200
+    chunk_overlap: 200
+    # Curated IPLO-bronpagina's; vul aan met relevante URL's.
+    iplo_urls:
+      - "https://iplo.nl/regelgeving/instrumenten/vergunningen-melding/"
   rev:
     ogc_base_url: "https://api.pdok.nl/rws/productie-en-industrie-productiefaciliteiten/ogc/v1"
     # Productiefaciliteiten zijn per sector over meerdere collections verdeeld;
