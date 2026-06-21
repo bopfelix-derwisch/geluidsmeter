@@ -39,3 +39,5 @@ def test_chat_no_index_degradeert(monkeypatch):
     r = client.post("/api/chat", json={"vraag": "iets"})
     assert r.status_code == 200
     assert r.json()["beschikbaar"] is False
+    assert r.json()["disclaimer"]
+    assert "bevoegd gezag" in r.json()["vangnet"]
