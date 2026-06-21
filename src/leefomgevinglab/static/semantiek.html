@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LeefomgevingLab — Semantische browser</title>
+  <script src="https://unpkg.com/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #080c14; color: #e0e6ed; }
+    header { background: #0d1b2a; border-bottom: 1px solid #1a3a5c; padding: 10px 16px;
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    header a { color: #2ecc8f; font-size: 13px; }
+    header input { margin-left: auto; padding: 6px 10px; border-radius: 8px; border: 1px solid #1a3a5c;
+      background: #0a1220; color: #e0e6ed; font-size: 13px; }
+    #cy { position: absolute; top: 49px; bottom: 0; left: 0; right: 320px; }
+    #panel { position: absolute; top: 49px; bottom: 0; right: 0; width: 320px; overflow-y: auto;
+      background: #0a1220; border-left: 1px solid #1a3a5c; padding: 14px; font-size: 13px; }
+    #panel h3 { color: #eafff6; font-size: 15px; margin-bottom: 6px; }
+    .muted { color: #8aa0b2; font-size: 12px; }
+    .legend span { display: inline-flex; align-items: center; gap: 5px; margin: 2px 8px 2px 0; font-size: 11px; color: #8aa0b2; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .buur { border-top: 1px solid #14202e; padding: 6px 0; }
+    .buur b { color: #4fc3f7; }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/">← LeefomgevingLab</a>
+    <strong style="color:#2ecc8f">Semantische browser</strong>
+    <span class="muted">IMX-Geo · koppelingen tussen modellen</span>
+    <input id="zoek" placeholder="zoek begrip…" />
+  </header>
+  <div id="cy"></div>
+  <div id="panel">
+    <div id="legend" class="legend"></div>
+    <hr style="border-color:#14202e; margin:10px 0" />
+    <div id="info"><p class="muted">Klik een begrip in de graaf.</p></div>
+  </div>
+  <script>
+    const palette = ["#2ecc8f","#4fc3f7","#ffb74d","#e57373","#ba68c8","#a1887f","#90a4ae"];
+    const bronColor = {};
+    function colorFor(bron) {
+      if (!(bron in bronColor)) bronColor[bron] = palette[Object.keys(bronColor).length % palette.length];
+      return bronColor[bron];
+    }
+    let cy;
+
+    async function load(zoekTerm) {
+      const url = "/api/semantiek/graph" + (zoekTerm ? "?zoekTerm=" + encodeURIComponent(zoekTerm) : "");
+      let data;
+      try { const r = await fetch(url); data = await r.json(); }
+      catch (e) { document.getElementById("info").innerHTML = '<p class="muted">Graaf niet beschikbaar.</p>'; return; }
+      if (!data.beschikbaar) {
+        document.getElementById("info").innerHTML =
+          '<p class="muted">Nog geen graaf gebouwd. Draai <code>scripts/09_build_semantiek_graph.py</code>.</p>';
+        return;
+      }
+      (data.bronnen || []).forEach(colorFor);
+      renderLegend(data.bronnen || []);
+      const els = data.elements.nodes.map(n => ({ data: n.data })).concat(
+                  data.elements.edges.map(e => ({ data: e.data })));
+      cy = cytoscape({
+        container: document.getElementById("cy"),
+        elements: els,
+        style: [
+          { selector: "node", style: {
+              "background-color": (n) => colorFor(n.data("bron")),
+              "label": "data(label)", "color": "#cfd8dc", "font-size": "9px",
+              "text-valign": "bottom", "width": 16, "height": 16 } },
+          { selector: "edge", style: {
+              "width": 1, "line-color": "#33506a", "target-arrow-color": "#33506a",
+              "target-arrow-shape": "triangle", "curve-style": "bezier", "arrow-scale": 0.7 } },
+        ],
+        layout: { name: "cose", animate: false },
+      });
+      cy.on("tap", "node", (evt) => showNode(evt.target.data("id")));
+    }
+
+    function renderLegend(bronnen) {
+      document.getElementById("legend").innerHTML = bronnen.map(b =>
+        `<span><span class="dot" style="background:${colorFor(b)}"></span>${b}</span>`).join("");
+    }
+
+    async function showNode(uri) {
+      const info = document.getElementById("info");
+      info.innerHTML = "Bezig…";
+      try {
+        const r = await fetch("/api/semantiek/node?uri=" + encodeURIComponent(uri));
+        if (!r.ok) throw new Error();
+        const d = await r.json();
+        const n = d.node.data;
+        const buren = (d.buren || []).map(b =>
+          `<div class="buur"><b>${b.relatie}</b> → ${b.node.data.label} <span class="muted">(${b.node.data.bron})</span></div>`).join("");
+        info.innerHTML = `<h3>${n.label}</h3>` +
+          `<p class="muted">bron: ${n.bron}</p>` +
+          (n.definitie ? `<p>${n.definitie}</p>` : "") +
+          `<p class="muted" style="margin-top:8px">${n.id}</p>` +
+          (buren ? `<h3 style="font-size:13px;margin-top:12px">Koppelingen</h3>${buren}` : "");
+      } catch (e) { info.innerHTML = '<p class="muted">Kon node niet laden.</p>'; }
+    }
+
+    let t;
+    document.getElementById("zoek").addEventListener("input", (e) => {
+      clearTimeout(t);
+      t = setTimeout(() => load(e.target.value.trim()), 350);
+    });
+    load("");
+  </script>
+</body>
+</html>

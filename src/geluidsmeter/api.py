@@ -463,3 +463,8 @@ def api_semantiek_node(uri: str):
         elif e["data"]["target"] == uri and e["data"]["source"] in by_id:
             buren.append({"node": by_id[e["data"]["source"]], "relatie": e["data"]["relatie"]})
     return {"node": node, "buren": buren}
+
+
+@app.get("/semantiek", response_class=HTMLResponse)
+def semantiek_page():
+    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "semantiek.html").read_text()
