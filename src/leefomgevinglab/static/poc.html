@@ -130,13 +130,13 @@
             <li>Lokale triple-store + <b>SHACL-shape</b> + <code>POST /api/ld/sparql</code></li>
           </ul>
         </div>
-        <div class="card next">
-          <div class="lead">→ Wat er straks bij komt (Plan B)</div>
-          <h3>De generieke chatbot</h3>
+        <div class="card now">
+          <div class="lead">✓ Nu óók live (Plan B)</div>
+          <h3>De generieke chatbot — <a href="/datavraag" style="color:var(--accent)">/datavraag</a></h3>
           <ul>
-            <li>NL-vraag → <b>LLM schrijft SPARQL</b> (RAG-grounded) met fallback</li>
-            <li>Bevraagt eigen REV-LD <b>én</b> de KKG (provincie, scholen)</li>
-            <li><b>Nabijheid</b> ("binnen X m van een school") met shapely</li>
+            <li>NL-vraag → <b>Qwen schrijft SPARQL</b> (RAG-grounded) met fallback</li>
+            <li>Bevraagt eigen REV-LD <b>én</b> de KKG (provincie, scholen via GeoSPARQL)</li>
+            <li><b>Nabijheid</b> ("binnen X m van een school") met shapely (RD-projectie)</li>
             <li>Antwoord met cijfers, bron, onzekerheid — en de gebruikte query getoond</li>
           </ul>
         </div>
@@ -145,7 +145,7 @@
       <div class="live">
         <div class="num" id="count">…</div>
         <div class="q">
-          <b>Al live, op echte data:</b> via de eigen LD-laag tellen we
+          <b>Live, op echte data:</b> via de eigen LD-laag tellen we
           <span id="countlabel">REV-productiefaciliteiten in Zuid-Holland</span>.
           <div class="muted">Bron: REV (PDOK) → eigen RDF · gebied: provincie-polygon uit de Kadaster Knowledge Graph.</div>
         </div>
@@ -153,6 +153,16 @@
       <pre>POST /api/ld/sparql
 PREFIX ll: &lt;https://leefomgevinglab.local/rev/&gt;
 SELECT (COUNT(?s) AS ?n) WHERE { ?s a ll:REVProductiefaciliteit }</pre>
+
+      <div class="live" style="border-left:3px solid var(--blue)">
+        <div class="num" id="nabij" style="color:var(--blue)">62</div>
+        <div class="q">
+          <b>De oorspronkelijke vraag, beantwoord:</b> "hoeveel productiefaciliteiten liggen in de buurt
+          van een school?" → <b>62 van de 241</b> REV-productiefaciliteiten in Zuid-Holland liggen
+          binnen 500 m van een school.
+          <div class="muted">REV-LD (lokaal) × 4175 onderwijs-gebouwen uit de KKG (GeoSPARQL) · nabijheid met shapely. Probeer 'm op <a href="/datavraag" style="color:#4fc3f7">/datavraag</a>.</div>
+        </div>
+      </div>
     </section>
 
     <section>
