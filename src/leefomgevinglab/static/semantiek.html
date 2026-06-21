@@ -15,24 +15,36 @@
       display: flex; align-items: center; gap: 12px; flex-wrap: wrap; position: relative; z-index: 5; }
     header a { color: #2ecc8f; font-size: 13px; }
     header input { margin-left: auto; padding: 6px 10px; border-radius: 8px; border: 1px solid #1a3a5c;
-      background: #0a1220; color: #e0e6ed; font-size: 13px; }
-    #graph { position: absolute; top: 49px; bottom: 0; left: 0; right: 320px; background: #080c14; }
-    #panel { position: absolute; top: 49px; bottom: 0; right: 0; width: 320px; overflow-y: auto;
+      background: #0a1220; color: #e0e6ed; font-size: 13px; min-width: 160px; }
+    #graph { position: absolute; top: 49px; bottom: 0; left: 0; right: 340px; background: #080c14; }
+    #panel { position: absolute; top: 49px; bottom: 0; right: 0; width: 340px; overflow-y: auto;
       background: #0a1220; border-left: 1px solid #1a3a5c; padding: 14px; font-size: 13px; z-index: 5; }
-    #panel h3 { color: #eafff6; font-size: 15px; margin-bottom: 6px; }
+    h3 { color: #eafff6; font-size: 14px; margin: 0 0 6px; }
+    .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: #5b7385; margin: 14px 0 6px; }
     .muted { color: #8aa0b2; font-size: 12px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { font-size: 11px; padding: 4px 9px; border-radius: 12px; cursor: pointer;
+      border: 1px solid #1a3a5c; color: #8aa0b2; background: transparent; }
+    .chip:hover { border-color: #2ecc8f; color: #2ecc8f; }
+    .chip.active { background: #14323f; border-color: #2ecc8f; color: #2ecc8f; }
     .legend span { display: inline-flex; align-items: center; gap: 5px; margin: 2px 8px 2px 0; font-size: 11px; color: #8aa0b2; }
     .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    #objlist { max-height: 230px; overflow-y: auto; border: 1px solid #14202e; border-radius: 8px; }
+    .obj { padding: 5px 9px; cursor: pointer; border-bottom: 1px solid #0e1a26; }
+    .obj:hover { background: #112233; }
+    .obj .b { font-size: 9px; color: #5b7385; margin-left: 6px; }
+    .objgroup { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #5b7385;
+      padding: 5px 9px; background: #0c1722; position: sticky; top: 0; }
     .buur { border-top: 1px solid #14202e; padding: 6px 0; }
     .buur b { color: #4fc3f7; }
+    .back { color: #2ecc8f; cursor: pointer; font-size: 12px; }
     .hint { position: absolute; left: 12px; bottom: 10px; font-size: 11px; color: #5b7385; z-index: 5;
       background: rgba(8,12,20,.7); padding: 4px 8px; border-radius: 6px; }
     @media (max-width: 720px) {
-      header .muted { display: none; }
       header input { margin-left: 0; width: 100%; }
       body { display: flex; flex-direction: column; height: 100vh; }
-      #graph { position: relative; inset: auto; flex: 1 1 58%; min-height: 0; }
-      #panel { position: relative; inset: auto; width: auto; flex: 1 1 42%;
+      #graph { position: relative; inset: auto; flex: 1 1 52%; min-height: 0; }
+      #panel { position: relative; inset: auto; width: auto; flex: 1 1 48%;
                border-left: none; border-top: 1px solid #1a3a5c; }
       .hint { display: none; }
     }
@@ -42,128 +54,206 @@
   <header>
     <a href="/">← LeefomgevingLab</a>
     <strong style="color:#2ecc8f">Semantische browser</strong>
-    <span class="muted">IMX-Geo + IMEV · 3D-koppelingennetwerk</span>
-    <input id="zoek" placeholder="zoek begrip…" />
+    <input id="zoek" placeholder="filter objecten…" />
   </header>
   <div id="graph"></div>
-  <div class="hint">Sleep om te draaien · scroll/knijp om te zoomen · klik een begrip</div>
+  <div class="hint">Sleep om te draaien · scroll/knijp om te zoomen</div>
   <div id="panel">
+    <div class="lbl">Doorsnede</div>
+    <div id="doorsnedes" class="chips"></div>
+
+    <div class="lbl">Object kiezen</div>
+    <div id="objlist"><p class="muted" style="padding:8px">Laden…</p></div>
+
+    <div class="lbl">Details</div>
+    <div id="info"><p class="muted">Kies een doorsnede of een object.</p></div>
+
+    <div class="lbl">Legenda</div>
     <div id="legend" class="legend"></div>
-    <hr style="border-color:#14202e; margin:10px 0" />
-    <div id="info"><p class="muted">Klik een begrip in het netwerk.</p></div>
   </div>
+
   <script>
-    const palette = ["#2ecc8f","#4fc3f7","#ffb74d","#e57373","#ba68c8","#a1887f","#90a4ae"];
+    const palette = ["#2ecc8f","#4fc3f7","#ffb74d","#e57373","#ba68c8","#a1887f","#90a4ae","#80cbc4","#f06292"];
     const bronColor = {};
-    function colorFor(bron) {
-      if (!(bron in bronColor)) bronColor[bron] = palette[Object.keys(bronColor).length % palette.length];
-      return bronColor[bron];
+    function colorFor(b) {
+      if (!(b in bronColor)) bronColor[b] = palette[Object.keys(bronColor).length % palette.length];
+      return bronColor[b];
     }
-    function renderLegend(bronnen) {
-      document.getElementById("legend").innerHTML = (bronnen || []).map(b =>
-        `<span><span class="dot" style="background:${colorFor(b)}"></span>${b}</span>`).join("");
-    }
+    const CROSS = new Set(["begrip", "closeMatch", "exactMatch", "gelijkeNaam"]);
+
+    let nodesById = {};      // id -> stabiel node-object {id,label,bron}
+    let linksRaw = [];       // {s,t,relatie}
+    let adj = {};            // id -> [{other, relatie, out}]
+    let bronnen = [];
 
     const el = document.getElementById("graph");
     let didFit = false;
     const Graph = ForceGraph3D({ controlType: "orbit" })(el)
       .backgroundColor("#080c14")
       .nodeColor(n => colorFor(n.bron))
-      .nodeOpacity(0.9)
       .nodeRelSize(4)
-      // Altijd zichtbare 3D-tekstlabels náást de bol; valt veilig terug op alleen
-      // de bol als SpriteText niet beschikbaar/compatibel is (nooit blank scherm).
       .nodeThreeObjectExtend(true)
       .nodeThreeObject(node => {
         try {
           if (typeof SpriteText !== "function") return null;
           const s = new SpriteText(node.label);
-          s.color = colorFor(node.bron);
-          s.textHeight = 6;
-          s.backgroundColor = "rgba(8,12,20,0.65)";
-          s.padding = 2;
-          s.borderRadius = 3;
-          s.position.y = 7;
+          s.color = colorFor(node.bron); s.textHeight = 6;
+          s.backgroundColor = "rgba(8,12,20,0.65)"; s.padding = 2; s.borderRadius = 3; s.position.y = 7;
           return s;
         } catch (e) { return null; }
       })
       .nodeLabel(n => `${n.label} — ${n.bron}`)
-      .linkColor(() => "#3a5571")
-      .linkWidth(0.5)
-      .linkOpacity(0.45)
-      .linkDirectionalArrowLength(2.5)
-      .linkDirectionalArrowRelPos(1)
-      .linkDirectionalParticles(2)
-      .linkDirectionalParticleWidth(1.4)
-      .linkDirectionalParticleSpeed(0.006)
+      .linkColor(() => "#3a5571").linkWidth(0.5).linkOpacity(0.5)
+      .linkDirectionalArrowLength(2.5).linkDirectionalArrowRelPos(1)
+      .linkDirectionalParticles(2).linkDirectionalParticleWidth(1.4).linkDirectionalParticleSpeed(0.006)
       .linkLabel(l => l.relatie)
-      .onNodeClick(node => {
-        const ratio = 1 + 140 / Math.max(1, Math.hypot(node.x || 1, node.y || 1, node.z || 1));
-        Graph.cameraPosition({ x: node.x * ratio, y: node.y * ratio, z: node.z * ratio }, node, 800);
-        showNode(node.id);
-      })
-      .onEngineStop(() => { if (!didFit) { didFit = true; Graph.zoomToFit(600, 30); } });
+      .onNodeClick(node => focusNode(node.id, 1))
+      .onEngineStop(() => { if (!didFit) { didFit = true; Graph.zoomToFit(500, 25); } });
 
-    // Compactere layout: minder afstoting + kortere links zodat objecten niet ver wegzweven
     Graph.d3Force("charge").strength(-16);
     Graph.d3Force("link").distance(14).strength(1.6);
     Graph.d3VelocityDecay(0.35);
-    Graph.d3ReheatSimulation();
 
-    // Langzaam ronddraaien tot de gebruiker het netwerk aanraakt
     const controls = Graph.controls();
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.55;
-    ["start", "pointerdown", "wheel"].forEach(ev =>
-      el.addEventListener(ev, () => { controls.autoRotate = false; }, { passive: true }));
-
+    controls.autoRotate = true; controls.autoRotateSpeed = 0.5;
+    ["pointerdown", "wheel"].forEach(ev => el.addEventListener(ev, () => { controls.autoRotate = false; }, { passive: true }));
     function fitSize() { Graph.width(el.clientWidth).height(el.clientHeight); }
     window.addEventListener("resize", fitSize);
 
-    async function load(zoekTerm) {
-      const url = "/api/semantiek/graph" + (zoekTerm ? "?zoekTerm=" + encodeURIComponent(zoekTerm) : "");
+    function setData(idset) {
+      const nodes = [...idset].map(id => nodesById[id]).filter(Boolean);
+      const links = linksRaw.filter(l => idset.has(l.s) && idset.has(l.t))
+                            .map(l => ({ source: l.s, target: l.t, relatie: l.relatie }));
+      fitSize(); didFit = false;
+      Graph.graphData({ nodes, links });
+    }
+
+    // ── Doorsnedes ──────────────────────────────────────────────
+    function doorsnedeCross() {
+      const ids = new Set();
+      linksRaw.forEach(l => { if (CROSS.has(l.relatie)) { ids.add(l.s); ids.add(l.t); } });
+      setTitle("Cross-model koppelingen", `${ids.size} begrippen die modellen verbinden`);
+      setData(ids);
+    }
+    function doorsnedeAll() {
+      setTitle("Volledig netwerk", `${Object.keys(nodesById).length} begrippen`);
+      setData(new Set(Object.keys(nodesById)));
+    }
+    function doorsnedeBron(bron) {
+      const ids = new Set();
+      Object.values(nodesById).forEach(n => { if (n.bron === bron) ids.add(n.id); });
+      // directe buren erbij zodat je ziet waar de bron aan koppelt
+      linksRaw.forEach(l => { if (ids.has(l.s)) ids.add(l.t); if (ids.has(l.t)) ids.add(l.s); });
+      setTitle("Doorsnede: " + bron, `${bron} + directe koppelingen`);
+      setData(ids);
+    }
+    function setTitle(t, sub) {
+      document.getElementById("info").innerHTML = `<h3>${t}</h3><p class="muted">${sub}</p>`;
+    }
+    function markActive(key) {
+      document.querySelectorAll("#doorsnedes .chip").forEach(c =>
+        c.classList.toggle("active", c.dataset.k === key));
+    }
+
+    function renderDoorsnedes() {
+      const wrap = document.getElementById("doorsnedes");
+      const items = [["cross", "Cross-model"], ["all", "Volledig"]].concat(bronnen.map(b => ["bron:" + b, b]));
+      wrap.innerHTML = items.map(([k, lab]) => `<span class="chip" data-k="${k}">${lab}</span>`).join("");
+      wrap.querySelectorAll(".chip").forEach(c => c.onclick = () => {
+        markActive(c.dataset.k);
+        if (c.dataset.k === "cross") doorsnedeCross();
+        else if (c.dataset.k === "all") doorsnedeAll();
+        else doorsnedeBron(c.dataset.k.slice(5));
+      });
+    }
+
+    // ── Object kiezen → ego-netwerk ─────────────────────────────
+    function egoIds(uri, diepte) {
+      const ids = new Set([uri]);
+      let frontier = [uri];
+      for (let d = 0; d < diepte; d++) {
+        const next = [];
+        frontier.forEach(id => (adj[id] || []).forEach(e => { if (!ids.has(e.other)) { ids.add(e.other); next.push(e.other); } }));
+        frontier = next;
+      }
+      return ids;
+    }
+    function focusNode(uri, diepte) {
+      markActive("");
+      setData(egoIds(uri, diepte));
+      showDetail(uri, diepte);
+      const n = (Graph.graphData().nodes || []).find(x => x.id === uri);
+      if (n && n.x !== undefined) {
+        const r = 1 + 90 / Math.max(1, Math.hypot(n.x, n.y, n.z || 1));
+        Graph.cameraPosition({ x: n.x * r, y: n.y * r, z: n.z * r }, n, 700);
+      }
+    }
+    function showDetail(uri, diepte) {
+      const n = nodesById[uri];
+      if (!n) return;
+      const esc = s => (s || "").replace(/</g, "&lt;");
+      const buren = (adj[uri] || []).map(e =>
+        `<div class="buur"><b>${esc(e.relatie)}</b> ${e.out ? "→" : "←"} <span class="objlink" data-id="${esc(e.other)}" style="color:#4fc3f7;cursor:pointer">${esc(nodesById[e.other] ? nodesById[e.other].label : e.other)}</span> <span class="muted">(${esc(nodesById[e.other] ? nodesById[e.other].bron : "?")})</span></div>`).join("");
+      document.getElementById("info").innerHTML =
+        `<h3>${esc(n.label)}</h3><p class="muted">bron: ${esc(n.bron)} · ego-netwerk diepte ${diepte}</p>` +
+        (n.definitie ? `<p>${esc(n.definitie)}</p>` : "") +
+        `<p style="margin:6px 0"><span class="back" id="d1">diepte 1</span> · <span class="back" id="d2">diepte 2</span></p>` +
+        (buren ? `<div class="lbl">Koppelingen (${(adj[uri] || []).length})</div>${buren}` : '<p class="muted">Geen koppelingen.</p>');
+      document.getElementById("d1").onclick = () => focusNode(uri, 1);
+      document.getElementById("d2").onclick = () => focusNode(uri, 2);
+      document.querySelectorAll("#info .objlink").forEach(a => a.onclick = () => focusNode(a.dataset.id, 1));
+    }
+
+    function renderObjectList(filter) {
+      const f = (filter || "").toLowerCase();
+      const groups = {};
+      Object.values(nodesById).forEach(n => {
+        if (f && !n.label.toLowerCase().includes(f)) return;
+        (groups[n.bron] = groups[n.bron] || []).push(n);
+      });
+      const html = bronnen.filter(b => groups[b]).map(b => {
+        const items = groups[b].sort((a, c) => a.label.localeCompare(c.label)).map(n =>
+          `<div class="obj" data-id="${n.id.replace(/"/g, "&quot;")}">${n.label.replace(/</g, "&lt;")}<span class="b">${b}</span></div>`).join("");
+        return `<div class="objgroup">${b} (${groups[b].length})</div>${items}`;
+      }).join("");
+      const box = document.getElementById("objlist");
+      box.innerHTML = html || '<p class="muted" style="padding:8px">Geen objecten.</p>';
+      box.querySelectorAll(".obj").forEach(o => o.onclick = () => focusNode(o.dataset.id, 1));
+    }
+
+    function renderLegend() {
+      document.getElementById("legend").innerHTML = bronnen.map(b =>
+        `<span><span class="dot" style="background:${colorFor(b)}"></span>${b}</span>`).join("");
+    }
+
+    async function init() {
       let data;
-      try { const r = await fetch(url); data = await r.json(); }
+      try { data = await (await fetch("/api/semantiek/graph")).json(); }
       catch (e) { document.getElementById("info").innerHTML = '<p class="muted">Netwerk niet beschikbaar.</p>'; return; }
       if (!data.beschikbaar) {
         document.getElementById("info").innerHTML =
           '<p class="muted">Nog geen graaf gebouwd. Draai <code>scripts/09_build_semantiek_graph.py</code>.</p>';
         return;
       }
-      (data.bronnen || []).forEach(colorFor);
-      renderLegend(data.bronnen || []);
-      const nodes = data.elements.nodes.map(n => ({ id: n.data.id, label: n.data.label, bron: n.data.bron }));
-      const links = data.elements.edges.map(e => ({ source: e.data.source, target: e.data.target, relatie: e.data.relatie }));
-      fitSize();
-      didFit = false;
-      Graph.graphData({ nodes, links });
-    }
-
-    async function showNode(uri) {
-      const info = document.getElementById("info");
-      info.innerHTML = "Bezig…";
-      try {
-        const r = await fetch("/api/semantiek/node?uri=" + encodeURIComponent(uri));
-        if (!r.ok) throw new Error();
-        const d = await r.json();
-        const n = d.node.data;
-        const esc = s => (s || "").replace(/</g, "&lt;");
-        const buren = (d.buren || []).map(b =>
-          `<div class="buur"><b>${esc(b.relatie)}</b> → ${esc(b.node.data.label)} <span class="muted">(${esc(b.node.data.bron)})</span></div>`).join("");
-        info.innerHTML = `<h3>${esc(n.label)}</h3>` +
-          `<p class="muted">bron: ${esc(n.bron)}</p>` +
-          (n.definitie ? `<p>${esc(n.definitie)}</p>` : "") +
-          `<p class="muted" style="margin-top:8px; word-break:break-all">${esc(n.id)}</p>` +
-          (buren ? `<h3 style="font-size:13px;margin-top:12px">Koppelingen (${d.buren.length})</h3>${buren}` : "");
-      } catch (e) { info.innerHTML = '<p class="muted">Kon begrip niet laden.</p>'; }
+      bronnen = (data.bronnen || []).slice();
+      bronnen.forEach(colorFor);
+      nodesById = {};
+      data.elements.nodes.forEach(n => { nodesById[n.data.id] = { id: n.data.id, label: n.data.label, bron: n.data.bron, definitie: n.data.definitie }; });
+      linksRaw = data.elements.edges.map(e => ({ s: e.data.source, t: e.data.target, relatie: e.data.relatie }));
+      adj = {};
+      linksRaw.forEach(l => {
+        (adj[l.s] = adj[l.s] || []).push({ other: l.t, relatie: l.relatie, out: true });
+        (adj[l.t] = adj[l.t] || []).push({ other: l.s, relatie: l.relatie, out: false });
+      });
+      renderDoorsnedes(); renderObjectList(""); renderLegend();
+      markActive("cross"); doorsnedeCross();   // startbeeld
     }
 
     let t;
-    document.getElementById("zoek").addEventListener("input", (e) => {
-      clearTimeout(t);
-      t = setTimeout(() => load(e.target.value.trim()), 350);
+    document.getElementById("zoek").addEventListener("input", e => {
+      clearTimeout(t); t = setTimeout(() => renderObjectList(e.target.value.trim()), 250);
     });
-    load("");
+    init();
   </script>
 </body>
 </html>
