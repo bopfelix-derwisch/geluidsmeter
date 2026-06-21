@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LeefomgevingLab — Vergunningen-chatbot</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #080c14; color: #e0e6ed; }
+    header { background: #0d1b2a; border-bottom: 1px solid #1a3a5c; padding: 12px 18px; }
+    header a { color: #2ecc8f; text-decoration: none; font-size: 13px; }
+    main { max-width: 760px; margin: 0 auto; padding: 18px; }
+    h1 { font-size: 18px; color: #eafff6; margin: 0 0 4px; }
+    .muted { color: #8aa0b2; font-size: 12px; }
+    #log { margin: 16px 0; display: flex; flex-direction: column; gap: 12px; }
+    .msg { padding: 10px 12px; border-radius: 8px; font-size: 14px; line-height: 1.5; }
+    .user { background: #14202e; align-self: flex-end; max-width: 80%; }
+    .bot { background: #0d1b2a; border: 1px solid #1a3a5c; }
+    .bronnen { font-size: 11px; color: #8aa0b2; margin-top: 8px; }
+    .bronnen a { color: #4fc3f7; }
+    .disc { font-size: 11px; color: #b89; margin-top: 8px; }
+    form { display: flex; gap: 8px; }
+    input { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #1a3a5c; background: #0a1220; color: #e0e6ed; }
+    button { padding: 10px 16px; border-radius: 8px; border: none; background: #2ecc8f; color: #042; font-weight: 700; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <header><a href="/">← LeefomgevingLab</a></header>
+  <main>
+    <h1>Vergunningen-chatbot</h1>
+    <p class="muted">Vraag indicatief wat de regels zeggen over een activiteit. Antwoorden met bronverwijzing; geen juridisch besluit.</p>
+    <div id="log"></div>
+    <form id="f">
+      <input id="q" placeholder="bv. mag ik een boom kappen in mijn tuin?" autocomplete="off" />
+      <button>Vraag</button>
+    </form>
+  </main>
+  <script>
+    const log = document.getElementById("log");
+    function add(cls, html) { const d = document.createElement("div"); d.className = "msg " + cls; d.innerHTML = html; log.appendChild(d); d.scrollIntoView(); return d; }
+    document.getElementById("f").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const q = document.getElementById("q").value.trim();
+      if (!q) return;
+      add("user", q.replace(/</g, "&lt;"));
+      document.getElementById("q").value = "";
+      const pending = add("bot", "Bezig…");
+      try {
+        const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vraag: q }) });
+        const d = await r.json();
+        if (!d.beschikbaar) {
+          pending.innerHTML = '<p>Geen antwoord beschikbaar (index of model offline).</p><div class="disc">' + d.vangnet + '</div>';
+          return;
+        }
+        const bronnen = (d.bronnen || []).map(u => '<a href="' + u + '" target="_blank">' + u + '</a>').join("<br>");
+        pending.innerHTML = "<p>" + d.antwoord.replace(/</g, "&lt;") + "</p>" +
+          (bronnen ? '<div class="bronnen">Bronnen:<br>' + bronnen + "</div>" : "") +
+          '<div class="disc">' + d.disclaimer + "<br>" + d.vangnet + "</div>";
+      } catch (err) { pending.innerHTML = "Er ging iets mis."; }
+    });
+  </script>
+</body>
+</html>

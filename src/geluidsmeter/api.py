@@ -20,6 +20,10 @@ from leefomgevinglab.usecases.rev_viewer import service as rev_service
 import os
 from leefomgevinglab.connectors.dso import DsoConnector
 from leefomgevinglab.usecases.vergunningen import service as vergunningen_service
+from functools import partial
+from leefomgevinglab.rag.embed import embed_texts
+from leefomgevinglab.rag.store import VectorStore
+from leefomgevinglab.usecases.vergunningen import chatbot
 
 
 class MobileSubmission(BaseModel):
@@ -359,3 +363,44 @@ class RegelsRequest(BaseModel):
 @app.post("/api/regels")
 def api_regels(req: RegelsRequest):
     return vergunningen_service.regels_opzoeken(req.activiteit, req.locatie, _dso_connector())
+
+
+def _rag_embed_fn():
+    rag = _config.get("leefomgevinglab", {}).get("rag", {})
+    emb = rag.get("embed", {})
+    return partial(embed_texts, base_url=emb.get("base_url", ""), model=emb.get("model", ""))
+
+
+def _rag_store():
+    rag = _config.get("leefomgevinglab", {}).get("rag", {})
+    try:
+        return VectorStore.load(rag.get("store_dir", ""))
+    except FileNotFoundError:
+        return None
+
+
+class ChatRequest(BaseModel):
+    vraag: str
+
+
+@app.post("/api/chat")
+def api_chat(req: ChatRequest):
+    store = _rag_store()
+    if store is None:
+        return {
+            "vraag": req.vraag, "antwoord": None, "bronnen": [], "onzekerheid": True,
+            "disclaimer": chatbot.DISCLAIMER, "vangnet": chatbot.VANGNET, "beschikbaar": False,
+        }
+    rag = _config.get("leefomgevinglab", {}).get("rag", {})
+    llm = _config.get("leefomgevinglab", {}).get("llm", {})
+    return chatbot.beantwoord(
+        req.vraag, store, _rag_embed_fn(),
+        llm_base_url=llm.get("base_url", "http://localhost:8080/v1"),
+        model=llm.get("model", "qwen2.5-32b"),
+        top_k=rag.get("top_k", 4), timeout_s=llm.get("timeout_s", 60),
+    )
+
+
+@app.get("/chatbot", response_class=HTMLResponse)
+def chatbot_page():
+    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "chat.html").read_text()
