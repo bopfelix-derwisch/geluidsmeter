@@ -1,0 +1,10 @@
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix ll:   <https://leefomgevinglab.local/rev/> .
+@prefix geo:  <http://www.opengis.net/ont/geosparql#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+ll:SevesoInrichtingShape
+    a sh:NodeShape ;
+    sh:targetClass ll:SevesoInrichting ;
+    sh:property [ sh:path rdfs:label ; sh:minCount 1 ; sh:datatype rdfs:Literal ] ;
+    sh:property [ sh:path geo:asWKT ; sh:minCount 1 ; sh:datatype geo:wktLiteral ] .
