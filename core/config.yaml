@@ -101,6 +101,10 @@ leefomgevinglab:
     ttl_urls:
       - "https://raw.githubusercontent.com/geonovum/IMX-Geo/main/conceptscheme/imxgeo-skos.ttl"
       - "https://raw.githubusercontent.com/geonovum/IMX-Geo/main/mim-ld-export/model/imx-geo-mim.ttl"
+    # Vocab-JSON-bronnen (skos:Concept-lijsten met definitie). IMEV 3.0.x begrippen
+    # externe veiligheid (Geonovum/imev). Geverifieerd 2026-06-21.
+    vocab_json_urls:
+      - "https://raw.githubusercontent.com/Geonovum/imev/main/informatiemodel/IMEV_vocab_export_DSO.json"
   viewer:
     center_lat: 51.885
     center_lon: 4.27

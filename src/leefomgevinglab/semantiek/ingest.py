@@ -1,4 +1,6 @@
-"""Ingest van open linked-data TTL-bronnen (IMX-Geo) voor de semantische graaf."""
+"""Ingest van open linked-data bronnen (IMX-Geo TTL, IMEV vocab-JSON) voor de semantische graaf."""
+import json
+
 import httpx
 
 from leefomgevinglab.connectors.base import ConnectorError
@@ -21,3 +23,14 @@ def fetch_all(urls: list[str], timeout_s: float = 25.0) -> list[str]:
         except ConnectorError:
             continue
     return texts
+
+
+def fetch_all_json(urls: list[str], timeout_s: float = 25.0) -> list:
+    """Haal vocab-JSON-bronnen op en parse ze; sla mislukte/onleesbare over."""
+    docs: list = []
+    for url in urls:
+        try:
+            docs.append(json.loads(fetch_ttl(url, timeout_s)))
+        except (ConnectorError, ValueError):
+            continue
+    return docs

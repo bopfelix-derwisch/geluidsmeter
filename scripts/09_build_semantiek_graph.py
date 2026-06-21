@@ -6,14 +6,15 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import yaml
-from leefomgevinglab.semantiek.ingest import fetch_all
+from leefomgevinglab.semantiek.ingest import fetch_all, fetch_all_json
 from leefomgevinglab.semantiek.graph import build_graph, save_graph
 
 
 def main():
     cfg = yaml.safe_load(open(Path(__file__).parent.parent / "core" / "config.yaml"))["leefomgevinglab"]["semantiek"]
     texts = fetch_all(cfg["ttl_urls"])
-    graph = build_graph(texts)
+    vocab_docs = fetch_all_json(cfg.get("vocab_json_urls", []))
+    graph = build_graph(texts, vocab_docs)
     save_graph(graph, cfg["store_dir"])
     print(f"Semantiek-graaf: {len(graph['nodes'])} nodes, {len(graph['edges'])} edges, "
           f"bronnen {graph['bronnen']} -> {cfg['store_dir']}")

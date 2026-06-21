@@ -15,10 +15,36 @@ FIXTURE = """
 """
 
 
+VOCAB = [
+    {"uri": "http://definities.geostandaarden.nl/imev/id/begrippenkader/IMEV", "@type": "skos:ConceptScheme", "naam": "Begrippenkader IMEV"},
+    {"uri": "http://definities.geostandaarden.nl/imev/id/begrip/aandachtsgebied",
+     "@type": "skos:Concept", "naam": "aandachtsgebied", "term": "aandachtsgebied",
+     "definitie": "Een locatie waar een extern veiligheidsaspect aan de orde is.",
+     "isEngerDan": "http://definities.geostandaarden.nl/imev/id/begrip/brandaandachtsgebied"},
+]
+
+
 def test_bron_from_uri():
     imx = {"https://staging-definities.geostandaarden.nl/imx-geo/id/begrip/straatnaam"}
     assert G.bron_from_uri("https://staging-definities.geostandaarden.nl/imx-geo/id/begrip/straatnaam", imx) == "IMX-Geo"
     assert G.bron_from_uri("http://bag.basisregistraties.overheid.nl/id/begrip/Naam", imx) == "BAG"
+    assert G.bron_from_uri("http://definities.geostandaarden.nl/imev/id/begrip/aandachtsgebied", imx) == "IMEV"
+
+
+def test_build_graph_met_vocab_imev():
+    g = G.build_graph([FIXTURE], [VOCAB])
+    by_id = {n["data"]["id"]: n["data"] for n in g["nodes"]}
+    aand = by_id["http://definities.geostandaarden.nl/imev/id/begrip/aandachtsgebied"]
+    assert aand["label"] == "aandachtsgebied"
+    assert aand["bron"] == "IMEV"
+    assert "veiligheidsaspect" in aand["definitie"]
+    # isEngerDan -> narrower edge naar het IMEV-doelbegrip
+    rels = {(e["data"]["relatie"], e["data"]["target"]) for e in g["edges"]
+            if e["data"]["source"] == "http://definities.geostandaarden.nl/imev/id/begrip/aandachtsgebied"}
+    assert ("narrower", "http://definities.geostandaarden.nl/imev/id/begrip/brandaandachtsgebied") in rels
+    assert "IMEV" in g["bronnen"] and "IMX-Geo" in g["bronnen"]
+    # ConceptScheme-entry wordt geen node
+    assert "http://definities.geostandaarden.nl/imev/id/begrippenkader/IMEV" not in by_id
 
 
 def test_build_graph_nodes_edges_bron():
