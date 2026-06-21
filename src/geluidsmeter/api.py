@@ -25,6 +25,7 @@ from leefomgevinglab.rag.embed import embed_texts
 from leefomgevinglab.rag.store import VectorStore
 from leefomgevinglab.usecases.vergunningen import chatbot
 from leefomgevinglab.semantiek import graph as semantiek_graph
+from leefomgevinglab.ld import store as ld_store
 
 
 class MobileSubmission(BaseModel):
@@ -468,3 +469,23 @@ def api_semantiek_node(uri: str):
 @app.get("/semantiek", response_class=HTMLResponse)
 def semantiek_page():
     return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "semantiek.html").read_text()
+
+
+def _ld_graph():
+    ld = _config.get("leefomgevinglab", {}).get("ld", {})
+    return ld_store.load_graph(ld.get("store_dir", ""))
+
+
+class LdSparqlRequest(BaseModel):
+    query: str
+
+
+@app.post("/api/ld/sparql")
+def api_ld_sparql(req: LdSparqlRequest):
+    g = _ld_graph()
+    if g is None:
+        return {"rows": [], "beschikbaar": False}
+    try:
+        return {"rows": ld_store.run_sparql(g, req.query), "beschikbaar": True}
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Ongeldige SPARQL: {exc}")
