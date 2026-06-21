@@ -11,16 +11,19 @@ from leefomgevinglab.ld import kkg
 from leefomgevinglab.ld.rev_to_rdf import build_rev_graph
 from leefomgevinglab.ld.store import save_graph
 
-PROV_WKT_Q = """PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+# Provincie in de KKG: type imx-geo:Provincie, naam via imx-geo:naam, geometrie via
+# geo:hasGeometry/geo:asWKT (geverifieerd 2026-06-21 tegen het KKG-endpoint).
+PROV_WKT_Q = """PREFIX imx: <http://modellen.geostandaarden.nl/def/imx-geo#>
 PREFIX geo: <http://www.opengis.net/ont/geosparql#>
 SELECT ?wkt WHERE {{
-  ?p rdfs:label "{prov}" ; geo:hasGeometry/geo:asWKT ?wkt .
+  ?p a imx:Provincie ; imx:naam "{prov}" ; geo:hasGeometry/geo:asWKT ?wkt .
 }} LIMIT 1"""
 
 
 def main():
     root = Path(__file__).parent.parent
-    cfg = yaml.safe_load(open(root / "core" / "config.yaml"))["leefomgevinglab"]
+    with open(root / "core" / "config.yaml") as _f:
+        cfg = yaml.safe_load(_f)["leefomgevinglab"]
     ld = cfg["ld"]
     # Provincie-polygon uit KKG (verify de exacte URI/structuur indien leeg)
     rows = kkg.sparql(PROV_WKT_Q.format(prov=ld["provincie"]), ld["kkg_endpoint"])
