@@ -104,6 +104,46 @@
     </section>
 
     <section>
+      <div class="section-title">Wat we leren over de kwaliteit van het stelsel</div>
+      <p style="color: var(--muted); max-width: 820px; margin-bottom: 16px;">
+        Onderdeel van het doel (<em>eat your own dogfood</em>): door zélf te koppelen ontdekken we
+        hoe de voorzieningen in de praktijk werken. Onderstaande bevindingen komen rechtstreeks uit
+        het bouwen van de huidige use-cases — geen kritiek, maar leerpunten over bruikbaarheid en
+        herkomst.
+      </p>
+      <table>
+        <thead><tr><th>Bron</th><th>Bevinding</th><th>Les / aanpak</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>PDOK (BRT, OGC API Features)</td>
+            <td class="st-live">✓ schoon</td>
+            <td>Open, geen key, standaard OGC — direct bruikbaar als basislaag en als patroon.</td>
+          </tr>
+          <tr>
+            <td>REV (PDOK, INSPIRE-geharmoniseerd)</td>
+            <td class="st-block">⚠ eigenaardig</td>
+            <td>Levert geometrie in <code>EPSG:4258</code> met lat,lon-asvolgorde en negeert <code>bbox-crs</code>; objecten staan over zes sector-<em>collections</em> (de gekozen "Bouw"-laag was bijna leeg). De connector zet de assen recht en voegt de collections samen → toont herkomst van de INSPIRE-harmonisatie.</td>
+          </tr>
+          <tr>
+            <td>DSO Registratie Toepasbare Regels</td>
+            <td class="st-block">⚠ gesloten rand</td>
+            <td>Base-URL is openbaar, maar het exacte operatie-pad en de api-key-header staan alleen in de OpenAPI-spec, en de respons is niet inspecteerbaar zonder key. Integratie is pas hard te maken ná het aanvragen van de (gratis) key — bewust afgebakend, niet gegokt.</td>
+          </tr>
+          <tr>
+            <td>IPLO (kennisbron, RAG)</td>
+            <td class="st-block">⚠ scrapen</td>
+            <td>Pagina's zijn script-zwaar; naïeve tekst-extractie sloeg de hele body over (nu robuuste strip). Gedocumenteerde URL's gaven 404 — bron-URL's moeten geverifieerd en onderhouden worden.</td>
+          </tr>
+          <tr>
+            <td>Samen Meten · Luchtmeetnet · LMA</td>
+            <td class="st-plan">• te beproeven</td>
+            <td>Nog niet gekoppeld; onderdeel van de lucht/afval-backlog — daar toetsen we openheid en datakwaliteit.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
       <div class="section-title">Geblokkeerd op externe afhankelijkheid</div>
       <table>
         <thead><tr><th>Item</th><th>Status</th><th>Blokkade</th></tr></thead>
