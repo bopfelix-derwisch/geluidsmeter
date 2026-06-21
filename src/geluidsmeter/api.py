@@ -149,6 +149,11 @@ def demo_page():
     return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "demo.html").read_text()
 
 
+@app.get("/poc", response_class=HTMLResponse)
+def poc_page():
+    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "poc.html").read_text()
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "project": "geluidsmeter", "ts": datetime.now(timezone.utc).isoformat()}
