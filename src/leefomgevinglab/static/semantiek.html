@@ -22,6 +22,14 @@
     .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
     .buur { border-top: 1px solid #14202e; padding: 6px 0; }
     .buur b { color: #4fc3f7; }
+    @media (max-width: 720px) {
+      header .muted { display: none; }
+      header input { margin-left: 0; width: 100%; }
+      body { display: flex; flex-direction: column; height: 100vh; margin: 0; }
+      #cy { position: relative; inset: auto; flex: 1 1 55%; min-height: 0; }
+      #panel { position: relative; inset: auto; width: auto; flex: 1 1 45%;
+               border-left: none; border-top: 1px solid #1a3a5c; }
+    }
   </style>
 </head>
 <body>

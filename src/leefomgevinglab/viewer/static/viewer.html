@@ -17,6 +17,11 @@
     button { margin-top: 8px; padding: 8px 12px; cursor: pointer; }
     pre { white-space: pre-wrap; font-size: 12px; background: #fff; padding: 8px; border: 1px solid #eee; }
     .disc { color: #884; font-size: 11px; margin-top: 8px; }
+    @media (max-width: 720px) {
+      #map { inset: 0 0 48% 0; }
+      #panel { top: 52%; left: 0; right: 0; bottom: 0; width: auto;
+               border-left: none; border-top: 1px solid #ddd; }
+    }
   </style>
 </head>
 <body>
