@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LeefomgevingLab — Semantische browser (3D)</title>
   <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
-  <script src="https://unpkg.com/three-spritetext@1.8.2/dist/three-spritetext.min.js"></script>
+  <script src="https://unpkg.com/three-spritetext@1.10.0/dist/three-spritetext.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, sans-serif; background: #080c14; color: #e0e6ed; overflow: hidden; }
@@ -66,15 +66,23 @@
     let didFit = false;
     const Graph = ForceGraph3D({ controlType: "orbit" })(el)
       .backgroundColor("#080c14")
-      // Altijd zichtbare 3D-tekstlabels, gekleurd per bron
+      .nodeColor(n => colorFor(n.bron))
+      .nodeOpacity(0.9)
+      .nodeRelSize(4)
+      // Altijd zichtbare 3D-tekstlabels náást de bol; valt veilig terug op alleen
+      // de bol als SpriteText niet beschikbaar/compatibel is (nooit blank scherm).
+      .nodeThreeObjectExtend(true)
       .nodeThreeObject(node => {
-        const s = new SpriteText(node.label);
-        s.color = colorFor(node.bron);
-        s.textHeight = 5;
-        s.fontWeight = "600";
-        return s;
+        try {
+          if (typeof SpriteText !== "function") return null;
+          const s = new SpriteText(node.label);
+          s.color = colorFor(node.bron);
+          s.textHeight = 5;
+          s.position.y = 6;
+          return s;
+        } catch (e) { return null; }
       })
-      .nodeLabel(n => n.bron)
+      .nodeLabel(n => `${n.label} — ${n.bron}`)
       .linkColor(() => "#3a5571")
       .linkWidth(0.5)
       .linkOpacity(0.45)
