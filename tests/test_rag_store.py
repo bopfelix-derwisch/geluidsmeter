@@ -2,6 +2,12 @@ import pytest
 from leefomgevinglab.rag.store import VectorStore
 
 
+def test_build_empty_does_not_crash():
+    s = VectorStore.build([], [])
+    assert s.size == 0
+    assert s.search([1.0, 0.0], k=3) == []
+
+
 def test_build_search_topk():
     chunks = [{"text": "a", "url": "u1"}, {"text": "b", "url": "u2"}, {"text": "c", "url": "u3"}]
     vectors = [[1.0, 0.0], [0.0, 1.0], [0.9, 0.1]]

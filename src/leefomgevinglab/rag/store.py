@@ -14,7 +14,8 @@ def _normalize(mat: np.ndarray) -> np.ndarray:
 class VectorStore:
     def __init__(self, chunks: list[dict], vectors: np.ndarray):
         self.chunks = chunks
-        self._vectors = _normalize(np.asarray(vectors, dtype=np.float32))
+        mat = np.asarray(vectors, dtype=np.float32)
+        self._vectors = _normalize(mat) if mat.size else mat.reshape(0, 0)
 
     @classmethod
     def build(cls, chunks: list[dict], vectors: list[list[float]]) -> "VectorStore":

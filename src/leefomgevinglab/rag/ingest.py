@@ -1,37 +1,23 @@
 """IPLO-ingest: HTML ophalen -> tekst -> chunks -> embeddings -> VectorStore."""
-from html.parser import HTMLParser
+import html as _html
+import re
 
 import httpx
 
 from leefomgevinglab.connectors.base import ConnectorError
 from leefomgevinglab.rag.store import VectorStore
 
-_SKIP_TAGS = {"script", "style", "head", "noscript"}
-
-
-class _TextExtractor(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self._parts: list[str] = []
-        self._skip = 0
-
-    def handle_starttag(self, tag, attrs):
-        if tag in _SKIP_TAGS:
-            self._skip += 1
-
-    def handle_endtag(self, tag):
-        if tag in _SKIP_TAGS and self._skip:
-            self._skip -= 1
-
-    def handle_data(self, data):
-        if self._skip == 0 and data.strip():
-            self._parts.append(data.strip())
+# Verwijder eerst hele script/style/head/noscript-blokken (incl. inhoud), strip
+# daarna de resterende tags. Robuuster dan html.parser op echte HTML met scripts.
+_BLOCK_RE = re.compile(r"(?is)<(script|style|head|noscript)\b[^>]*>.*?</\1>")
+_TAG_RE = re.compile(r"(?s)<[^>]+>")
 
 
 def html_to_text(html: str) -> str:
-    p = _TextExtractor()
-    p.feed(html)
-    return " ".join(p._parts)
+    s = _BLOCK_RE.sub(" ", html)
+    s = _TAG_RE.sub(" ", s)
+    s = _html.unescape(s)
+    return " ".join(s.split())
 
 
 def chunk_text(text: str, chunk_chars: int, overlap: int) -> list[str]:

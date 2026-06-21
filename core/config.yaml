@@ -67,9 +67,10 @@ leefomgevinglab:
     top_k: 4
     chunk_chars: 1200
     chunk_overlap: 200
-    # Curated IPLO-bronpagina's; vul aan met relevante URL's.
+    # Curated IPLO-bronpagina's (geverifieerd 2026-06-21); vul aan met relevante URL's.
     iplo_urls:
-      - "https://iplo.nl/regelgeving/instrumenten/vergunningen-melding/"
+      - "https://iplo.nl/regelgeving/instrumenten/omgevingsvergunning/"
+      - "https://iplo.nl/regelgeving/regels-voor-activiteiten/"
   rev:
     ogc_base_url: "https://api.pdok.nl/rws/productie-en-industrie-productiefaciliteiten/ogc/v1"
     # Productiefaciliteiten zijn per sector over meerdere collections verdeeld;
