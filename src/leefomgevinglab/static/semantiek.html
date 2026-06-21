@@ -104,6 +104,12 @@
       })
       .onEngineStop(() => { if (!didFit) { didFit = true; Graph.zoomToFit(600, 30); } });
 
+    // Compactere layout: minder afstoting + kortere links zodat objecten niet ver wegzweven
+    Graph.d3Force("charge").strength(-32);
+    Graph.d3Force("link").distance(26).strength(1.3);
+    Graph.d3VelocityDecay(0.32);
+    Graph.d3ReheatSimulation();
+
     // Langzaam ronddraaien tot de gebruiker het netwerk aanraakt
     const controls = Graph.controls();
     controls.autoRotate = true;

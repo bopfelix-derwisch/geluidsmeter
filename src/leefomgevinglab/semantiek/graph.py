@@ -112,6 +112,15 @@ def build_graph(ttl_texts: list[str], vocab_docs: list | None = None) -> dict:
                     add_node(str(su), bron="IMX-Geo")
                     add_node(str(sp), bron="IMX-Geo")
                     add_edge(str(su), "supertype", str(sp))
+    # Associaties (relatiesoorten): subject draagt mim:bron + mim:doel -> objecttypen
+    for rs in set(g.subjects(MIM.bron, None)):
+        naam = next((str(o) for o in g.objects(rs, MIM.naam)), None) or "associatie"
+        for b in g.objects(rs, MIM.bron):
+            for d in g.objects(rs, MIM.doel):
+                if isinstance(b, rdflib.URIRef) and isinstance(d, rdflib.URIRef):
+                    add_node(str(b), bron="IMX-Geo")
+                    add_node(str(d), bron="IMX-Geo")
+                    add_edge(str(b), naam, str(d))
 
     # Vocab-JSON-bronnen (IMEV begrippen): elk een lijst skos:Concept-dicts
     for doc in (vocab_docs or []):

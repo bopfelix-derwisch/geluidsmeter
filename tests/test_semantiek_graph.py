@@ -46,6 +46,20 @@ def test_build_graph_mim_objecttype_en_begripmapping():
     assert ("urn:uuid:OT1", "begrip", "http://definities.geostandaarden.nl/nen3610-2022/id/begrip/gebouw") in cross
 
 
+MIM_ASSOC = """
+@prefix mim: <http://bp4mc2.org/def/mim#> .
+<urn:uuid:A> a mim:Objecttype ; mim:naam "Gebouw" .
+<urn:uuid:B> a mim:Objecttype ; mim:naam "Perceel" .
+<urn:uuid:R> mim:naam "ligt op" ; mim:bron <urn:uuid:A> ; mim:doel <urn:uuid:B> .
+"""
+
+
+def test_build_graph_mim_associatie():
+    g = G.build_graph([MIM_ASSOC])
+    edges = {(e["data"]["source"], e["data"]["relatie"], e["data"]["target"]) for e in g["edges"]}
+    assert ("urn:uuid:A", "ligt op", "urn:uuid:B") in edges
+
+
 def test_bron_from_uri():
     imx = {"https://staging-definities.geostandaarden.nl/imx-geo/id/begrip/straatnaam"}
     assert G.bron_from_uri("https://staging-definities.geostandaarden.nl/imx-geo/id/begrip/straatnaam", imx) == "IMX-Geo"
