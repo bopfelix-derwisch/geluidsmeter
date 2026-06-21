@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LeefomgevingLab — Semantische browser (3D)</title>
+  <!-- Globale THREE (UMD) zodat three-spritetext z'n SpriteText kan bouwen -->
+  <script src="https://unpkg.com/three@0.160.1/build/three.min.js"></script>
   <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
   <script src="https://unpkg.com/three-spritetext@1.10.0/dist/three-spritetext.min.js"></script>
   <style>
@@ -77,8 +79,11 @@
           if (typeof SpriteText !== "function") return null;
           const s = new SpriteText(node.label);
           s.color = colorFor(node.bron);
-          s.textHeight = 5;
-          s.position.y = 6;
+          s.textHeight = 6;
+          s.backgroundColor = "rgba(8,12,20,0.65)";
+          s.padding = 2;
+          s.borderRadius = 3;
+          s.position.y = 7;
           return s;
         } catch (e) { return null; }
       })

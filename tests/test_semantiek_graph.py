@@ -47,6 +47,20 @@ def test_build_graph_met_vocab_imev():
     assert "http://definities.geostandaarden.nl/imev/id/begrippenkader/IMEV" not in by_id
 
 
+def test_gelijke_naam_koppelt_imxgeo_en_imev():
+    # IMX-Geo 'adres' (uit FIXTURE) en een IMEV-begrip met dezelfde naam 'adres'
+    vocab = [[
+        {"uri": "http://definities.geostandaarden.nl/imev/id/begrip/adres",
+         "@type": "skos:Concept", "naam": "adres", "term": "adres",
+         "definitie": "Adres in IMEV-context."},
+    ]]
+    g = G.build_graph([FIXTURE], vocab)
+    cross = [e for e in g["edges"] if e["data"]["relatie"] == "gelijkeNaam"]
+    paren = {(e["data"]["source"], e["data"]["target"]) for e in cross}
+    assert ("https://staging-definities.geostandaarden.nl/imx-geo/id/begrip/adres",
+            "http://definities.geostandaarden.nl/imev/id/begrip/adres") in paren
+
+
 def test_build_graph_nodes_edges_bron():
     g = G.build_graph([FIXTURE])
     ids = {n["data"]["id"] for n in g["nodes"]}

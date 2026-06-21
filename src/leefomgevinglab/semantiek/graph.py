@@ -104,6 +104,20 @@ def build_graph(ttl_texts: list[str], vocab_docs: list | None = None) -> dict:
                         add_node(tgt)
                         add_edge(uri, rel, tgt)
 
+    # Heuristische cross-model koppeling: IMX-Geo <-> IMEV op gelijke begripsnaam.
+    # (IMX-Geo en IMEV leggen onderling geen expliciete match; dit verbindt de clusters.)
+    by_label: dict[str, list[tuple[str, str]]] = {}
+    for uri, node in nodes.items():
+        lab = (node["data"]["label"] or "").strip().lower()
+        if lab:
+            by_label.setdefault(lab, []).append((uri, node["data"]["bron"]))
+    for group in by_label.values():
+        imx = [u for u, b in group if b == "IMX-Geo"]
+        imev = [u for u, b in group if b == "IMEV"]
+        for a in imx:
+            for b in imev:
+                add_edge(a, "gelijkeNaam", b)
+
     bronnen = sorted({n["data"]["bron"] for n in nodes.values()})
     return {"nodes": list(nodes.values()), "edges": edges, "bronnen": bronnen}
 
