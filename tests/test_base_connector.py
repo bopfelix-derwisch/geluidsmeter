@@ -20,7 +20,7 @@ class _FakeResponse:
 def test_cache_miss_fetches_and_writes(tmp_path, monkeypatch):
     calls = []
 
-    def fake_get(url, params=None, timeout=None):
+    def fake_get(url, params=None, headers=None, timeout=None):
         calls.append(url)
         return _FakeResponse({"ok": True})
 
@@ -34,7 +34,7 @@ def test_cache_miss_fetches_and_writes(tmp_path, monkeypatch):
 
 
 def test_error_without_cache_raises(tmp_path, monkeypatch):
-    def fake_get(url, params=None, timeout=None):
+    def fake_get(url, params=None, headers=None, timeout=None):
         raise httpx.ConnectError("down")
 
     monkeypatch.setattr(httpx, "get", fake_get)
@@ -48,7 +48,7 @@ def test_error_with_stale_cache_returns_cache(tmp_path, monkeypatch):
     cp = c._cache_path("https://x/api", None)
     cp.write_text(json.dumps({"stale": True}))
 
-    def fake_get(url, params=None, timeout=None):
+    def fake_get(url, params=None, headers=None, timeout=None):
         raise httpx.ConnectError("down")
 
     monkeypatch.setattr(httpx, "get", fake_get)
