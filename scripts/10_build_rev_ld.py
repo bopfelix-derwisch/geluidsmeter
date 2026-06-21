@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Bouw de lokale REV-LD-graph: REV-Seveso in Zuid-Holland -> RDF op NVMe."""
+"""Bouw de lokale REV-LD-graph: REV-productiefaciliteiten in Zuid-Holland -> RDF op NVMe.
+
+NB: de open REV-laag heeft geen Seveso-vlag; dit is de productiefaciliteiten-laag
+(klasse ll:REVProductiefaciliteit), niet specifiek Seveso. Zie design-doc.
+"""
 import sys
 from pathlib import Path
 
@@ -35,9 +39,9 @@ def main():
     fc = {"type": "FeatureCollection", "features": []}
     for bbox in ["3.9,51.6,4.9,52.2"]:   # Zuid-Holland (lon,lat)
         fc["features"].extend(conn.features(bbox).get("features", []))
-    sev_prop, sev_vals = ld.get("seveso_property"), ld.get("seveso_values") or []
-    filt = (lambda p: str(p.get(sev_prop)) in [str(v) for v in sev_vals]) if sev_prop else None
-    g = build_rev_graph(fc, gebied_wkt=gebied_wkt, seveso_filter=filt)
+    fprop, fvals = ld.get("filter_property"), ld.get("filter_values") or []
+    filt = (lambda p: str(p.get(fprop)) in [str(v) for v in fvals]) if fprop else None
+    g = build_rev_graph(fc, gebied_wkt=gebied_wkt, feature_filter=filt)
     save_graph(g, ld["store_dir"])
     print(f"REV-LD: {len(list(g.subjects(None, None)))} triples-subj, opgeslagen in {ld['store_dir']}; gebied={'ja' if gebied_wkt else 'geen'}")
 

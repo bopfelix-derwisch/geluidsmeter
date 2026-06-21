@@ -14,8 +14,8 @@ ZH = "POLYGON((4.0 51.6, 4.6 51.6, 4.6 52.1, 4.0 52.1, 4.0 51.6))"
 
 
 def test_build_graph_filtert_gebied_en_seveso():
-    g = R.build_rev_graph(_fc(), gebied_wkt=ZH, seveso_filter=lambda p: p.get("seveso") == "ja")
-    klassen = list(g.subjects(RDF.type, R.SEVESO_CLASS))
+    g = R.build_rev_graph(_fc(), gebied_wkt=ZH, feature_filter=lambda p: p.get("seveso") == "ja")
+    klassen = list(g.subjects(RDF.type, R.REV_CLASS))
     assert len(klassen) == 1                      # alleen Fabriek A (binnen + seveso=ja)
     s = klassen[0]
     assert str(next(g.objects(s, RDFS.label))) == "Fabriek A"
@@ -25,4 +25,4 @@ def test_build_graph_filtert_gebied_en_seveso():
 
 def test_geen_filters_neemt_alles():
     g = R.build_rev_graph(_fc())
-    assert len(list(g.subjects(RDF.type, R.SEVESO_CLASS))) == 2
+    assert len(list(g.subjects(RDF.type, R.REV_CLASS))) == 2

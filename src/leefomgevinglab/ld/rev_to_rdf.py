@@ -8,7 +8,9 @@ from shapely import wkt as shapely_wkt
 
 LL = rdflib.Namespace("https://leefomgevinglab.local/rev/")
 GEO = rdflib.Namespace("http://www.opengis.net/ont/geosparql#")
-SEVESO_CLASS = LL.SevesoInrichting
+# Eerlijke klasse: dit is de open REV-productiefaciliteiten-laag. Seveso is hieruit NIET
+# schoon te isoleren (geen vlag; Seveso komt uit de BRZO-bron / risicokaart). Zie design-doc.
+REV_CLASS = LL.REVProductiefaciliteit
 
 
 def _feature_id(props: dict, geom_wkt: str) -> str:
@@ -16,7 +18,7 @@ def _feature_id(props: dict, geom_wkt: str) -> str:
     return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
 
-def build_rev_graph(features: dict, gebied_wkt: str | None = None, seveso_filter=None) -> rdflib.Graph:
+def build_rev_graph(features: dict, gebied_wkt: str | None = None, feature_filter=None) -> rdflib.Graph:
     g = rdflib.Graph()
     g.bind("ll", LL)
     g.bind("geo", GEO)
@@ -26,14 +28,14 @@ def build_rev_graph(features: dict, gebied_wkt: str | None = None, seveso_filter
         geom = feat.get("geometry")
         if not geom:
             continue
-        if seveso_filter is not None and not seveso_filter(props):
+        if feature_filter is not None and not feature_filter(props):
             continue
         shp = shape(geom)
         if gebied is not None and not shp.intersects(gebied):
             continue
         geom_wkt = shp.wkt
         s = URIRef(LL[_feature_id(props, geom_wkt)])
-        g.add((s, RDF.type, SEVESO_CLASS))
+        g.add((s, RDF.type, REV_CLASS))
         naam = props.get("name") or props.get("naam") or "REV-object"
         g.add((s, RDFS.label, Literal(naam)))
         g.add((s, GEO.asWKT, Literal(geom_wkt, datatype=GEO.wktLiteral)))

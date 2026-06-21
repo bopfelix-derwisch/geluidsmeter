@@ -2,7 +2,7 @@ from fastapi.testclient import TestClient
 import geluidsmeter.api as api
 import rdflib
 from rdflib import RDF, RDFS, Literal, URIRef
-from leefomgevinglab.ld.rev_to_rdf import LL, GEO, SEVESO_CLASS
+from leefomgevinglab.ld.rev_to_rdf import LL, GEO, REV_CLASS
 
 
 def _client(monkeypatch):
@@ -13,7 +13,7 @@ def _client(monkeypatch):
 
 def _graph():
     g = rdflib.Graph(); s = URIRef(LL["a1"])
-    g.add((s, RDF.type, SEVESO_CLASS)); g.add((s, RDFS.label, Literal("A")))
+    g.add((s, RDF.type, REV_CLASS)); g.add((s, RDFS.label, Literal("A")))
     return g
 
 
@@ -21,7 +21,7 @@ def test_ld_sparql_ok(monkeypatch):
     client = _client(monkeypatch)
     monkeypatch.setattr(api, "_ld_graph", lambda: _graph())
     r = client.post("/api/ld/sparql", json={"query":
-        "PREFIX ll: <https://leefomgevinglab.local/rev/> SELECT (COUNT(?s) AS ?n) WHERE { ?s a ll:SevesoInrichting }"})
+        "PREFIX ll: <https://leefomgevinglab.local/rev/> SELECT (COUNT(?s) AS ?n) WHERE { ?s a ll:REVProductiefaciliteit }"})
     assert r.status_code == 200
     assert r.json()["rows"][0]["n"] == "1"
 
