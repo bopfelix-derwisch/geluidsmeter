@@ -17,6 +17,8 @@ _HOST_BRON = {
     "bag.basisregistraties.overheid.nl": "BAG",
     "bgt.basisregistraties.overheid.nl": "BGT",
     "brk.basisregistraties.overheid.nl": "BRK",
+    "opendata.stelselcatalogus.nl": "Stelselcatalogus",
+    "begrippen.geostandaarden.nl": "Geostandaarden",
 }
 
 
@@ -24,11 +26,16 @@ _HOST_BRON = {
 _VOCAB_REL = {"isEngerDan": "narrower", "isBrederDan": "broader"}
 
 
+MIM = rdflib.Namespace("http://bp4mc2.org/def/mim#")
+
+
 def bron_from_uri(uri: str, imxgeo_uris: set[str]) -> str:
     if uri in imxgeo_uris or "imx-geo" in uri:
         return "IMX-Geo"
     if "/imev/" in uri:
         return "IMEV"
+    if "nen3610" in uri:
+        return "NEN3610"
     host = uri.split("//")[-1].split("/")[0]
     if "rev" in uri or "externe-veiligheid" in uri:
         return "REV"
@@ -54,7 +61,8 @@ def build_graph(ttl_texts: list[str], vocab_docs: list | None = None) -> dict:
     edges: list[dict] = []
     seen: set[str] = set()
 
-    def add_node(uri: str, label: str | None = None, definitie: str | None = None) -> None:
+    def add_node(uri: str, label: str | None = None, definitie: str | None = None,
+                 bron: str | None = None) -> None:
         if uri in nodes:
             if definitie and not nodes[uri]["data"].get("definitie"):
                 nodes[uri]["data"]["definitie"] = definitie
@@ -67,7 +75,7 @@ def build_graph(ttl_texts: list[str], vocab_docs: list | None = None) -> dict:
         nodes[uri] = {"data": {
             "id": uri,
             "label": label,
-            "bron": bron_from_uri(uri, imxgeo),
+            "bron": bron or bron_from_uri(uri, imxgeo),
             "definitie": definitie,
         }}
 
@@ -85,6 +93,25 @@ def build_graph(ttl_texts: list[str], vocab_docs: list | None = None) -> dict:
             add_node(su)
             add_node(ou)
             add_edge(su, _REL[p], ou)
+
+    # MIM-LD-export (IMX-Geo): objecttypen + hun mappings naar bronbegrippen
+    # (mim:begrip -> NEN3610/BAG/...) en generalisaties (super-/subtype).
+    for ot in g.subjects(rdflib.RDF.type, MIM.Objecttype):
+        ou = str(ot)
+        naam = next((str(o) for o in g.objects(ot, MIM.naam)), None)
+        defi = next((str(o) for o in g.objects(ot, MIM.definitie)), None)
+        add_node(ou, label=naam, definitie=defi, bron="IMX-Geo")
+        for b in g.objects(ot, MIM.begrip):
+            if isinstance(b, rdflib.URIRef):
+                add_node(str(b))
+                add_edge(ou, "begrip", str(b))
+    for gen in g.subjects(rdflib.RDF.type, MIM.Generalisatie):
+        for su in g.objects(gen, MIM.subtype):
+            for sp in g.objects(gen, MIM.supertype):
+                if isinstance(su, rdflib.URIRef) and isinstance(sp, rdflib.URIRef):
+                    add_node(str(su), bron="IMX-Geo")
+                    add_node(str(sp), bron="IMX-Geo")
+                    add_edge(str(su), "supertype", str(sp))
 
     # Vocab-JSON-bronnen (IMEV begrippen): elk een lijst skos:Concept-dicts
     for doc in (vocab_docs or []):

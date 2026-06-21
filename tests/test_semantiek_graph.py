@@ -24,6 +24,28 @@ VOCAB = [
 ]
 
 
+MIM_FIXTURE = """
+@prefix mim: <http://bp4mc2.org/def/mim#> .
+<urn:uuid:OT1> a mim:Objecttype ;
+   mim:naam "Gebouw" ;
+   mim:definitie "Een bouwwerk." ;
+   mim:begrip <http://definities.geostandaarden.nl/nen3610-2022/id/begrip/gebouw> .
+"""
+
+
+def test_build_graph_mim_objecttype_en_begripmapping():
+    g = G.build_graph([MIM_FIXTURE])
+    by_id = {n["data"]["id"]: n["data"] for n in g["nodes"]}
+    ot = by_id["urn:uuid:OT1"]
+    assert ot["label"] == "Gebouw"
+    assert ot["bron"] == "IMX-Geo"
+    assert ot["definitie"] == "Een bouwwerk."
+    nen = by_id["http://definities.geostandaarden.nl/nen3610-2022/id/begrip/gebouw"]
+    assert nen["bron"] == "NEN3610"
+    cross = {(e["data"]["source"], e["data"]["relatie"], e["data"]["target"]) for e in g["edges"]}
+    assert ("urn:uuid:OT1", "begrip", "http://definities.geostandaarden.nl/nen3610-2022/id/begrip/gebouw") in cross
+
+
 def test_bron_from_uri():
     imx = {"https://staging-definities.geostandaarden.nl/imx-geo/id/begrip/straatnaam"}
     assert G.bron_from_uri("https://staging-definities.geostandaarden.nl/imx-geo/id/begrip/straatnaam", imx) == "IMX-Geo"
