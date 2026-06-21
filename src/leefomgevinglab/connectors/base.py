@@ -23,12 +23,12 @@ class BaseConnector:
         h = hashlib.sha256(key.encode()).hexdigest()[:16]
         return self.cache_dir / f"{h}.json"
 
-    def get_json(self, url: str, params: dict | None = None):
+    def get_json(self, url: str, params: dict | None = None, headers: dict | None = None):
         cp = self._cache_path(url, params)
         if cp.exists() and (time.time() - cp.stat().st_mtime) < self.cache_ttl:
             return json.loads(cp.read_text())
         try:
-            resp = httpx.get(url, params=params, timeout=self.timeout)
+            resp = httpx.get(url, params=params, headers=headers, timeout=self.timeout)
             resp.raise_for_status()
             data = resp.json()
         except (httpx.HTTPError, ValueError) as exc:

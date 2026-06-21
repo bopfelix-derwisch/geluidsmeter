@@ -71,6 +71,13 @@ leefomgevinglab:
       - production_facility_b   # Winning van delfstoffen
       - production_facility_f   # Bouw
     max_features: 500
+  dso:
+    # DSO Registratie Toepasbare Regels (Samengestelde RTR Services v2). Base-URL
+    # geverifieerd 2026-06-21. operation_path en api_key_header bevestigen tegen
+    # de OpenAPI-spec zodra DSO_API_KEY beschikbaar is (zie plan Task 1 Step 0).
+    base_url: "https://service.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/samengestelderegistratietoepasbareregelsservices/v2"
+    operation_path: "_bepaalToepasbareRegels"
+    api_key_header: "x-api-key"
   llm:
     base_url: "http://localhost:8080/v1"
     model: "qwen2.5-32b"
