@@ -28,10 +28,7 @@
       "WebSearch"
     ],
     "deny": [
-      "Bash(sudo:*)",
-      "Bash(rm -rf:*)",
-      "Bash(systemctl:*)",
-      "Bash(git push:*)"
+      "Bash(rm -rf:*)"
     ]
   }
 }
