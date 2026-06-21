@@ -54,7 +54,11 @@
   <header>
     <a href="/">← LeefomgevingLab</a>
     <strong style="color:#2ecc8f">Semantische browser</strong>
-    <button id="demoBtn" style="padding:6px 12px;border:none;border-radius:8px;background:linear-gradient(135deg,#2ecc8f,#26a69a);color:#042;font-weight:700;cursor:pointer;font-size:13px">▶ Demo: informatievraag</button>
+    <select id="demoSel" style="padding:6px 10px;border:none;border-radius:8px;background:linear-gradient(135deg,#2ecc8f,#26a69a);color:#042;font-weight:700;cursor:pointer;font-size:13px">
+      <option value="">▶ Demo kiezen…</option>
+      <option value="harmonisatie">Demo 1 — Is dit gebouw kwetsbaar? (harmonisatie)</option>
+      <option value="taxonomie">Demo 2 — Soorten aandachtsgebied (classificatie)</option>
+    </select>
     <input id="zoek" placeholder="filter objecten…" />
   </header>
   <div id="graph"></div>
@@ -268,7 +272,12 @@
       const hit = Object.values(nodesById).find(n => n.bron === bron && n.label.toLowerCase().includes(s));
       return hit ? hit.id : null;
     }
-    const demoSteps = [
+    function findExact(bron, label) {
+      const s = label.toLowerCase();
+      const hit = Object.values(nodesById).find(n => n.bron === bron && n.label.toLowerCase() === s);
+      return hit ? hit.id : findId(bron, label);
+    }
+    const HARMONISATIE = [
       { t: "De informatievraag",
         h: "Is dit gebouw 'kwetsbaar' voor externe veiligheid?",
         x: "Stel: je wilt van een <b>gebouw</b> weten of het kwetsbaar is in het kader van externe veiligheid. Welke begrippen en registers heb je nodig — en bedoelen ze hetzelfde? De semantiek maakt dat zichtbaar. We starten bij de cross-model koppelingen.",
@@ -294,22 +303,50 @@
         x: "De semantiek beantwoordt de vraag deels — ze toont wélke begrippen bestaan en dat 'gebouw' geharmoniseerd is (NEN3610) — én ze maakt zichtbaar wáár het stelsel nog werk vergt (IMEV ↔ basisregistraties). Precies wat je in een leerproject wilt zien: betekenis én lacunes.",
         run: () => { const id = findId("IMX-Geo", "gebouw"); if (id) focusNode(id, 2); } },
     ];
+    const TAXONOMIE = [
+      { t: "De informatievraag",
+        h: "Welke soorten 'aandachtsgebied' kent externe veiligheid?",
+        x: "Externe veiligheid (IMEV) werkt met <b>aandachtsgebieden</b>. Maar welke soorten zijn er, en hoe hangen ze samen? Hier helpt de semantiek niet via koppeling tússen modellen, maar via <b>classificatie</b> bínnen een model. We bekijken eerst de IMEV-doorsnede.",
+        run: () => { markActive("bron:IMEV"); doorsnedeBron("IMEV"); } },
+      { t: "Stap 1 — Het hoofdbegrip",
+        h: "'aandachtsgebied' en zijn specialisaties",
+        x: "We kiezen het begrip <b>aandachtsgebied</b>. Het ego-netwerk toont de <b>narrower</b> (engere) begrippen: brand-, gifwolk-, explosie-, militair-explosie-, vuurwerk- en civiel-explosie-aandachtsgebied. Zo classificeert het model de soorten.",
+        run: () => { const id = findExact("IMEV", "aandachtsgebied"); if (id) focusNode(id, 1); } },
+      { t: "Stap 2 — Meerlaagse taxonomie",
+        h: "Specialisaties van specialisaties",
+        x: "Op diepte 2 zie je dat sommige soorten zélf weer onderverdeeld zijn (bijv. explosie-aandachtsgebied → militair / civiel / vuurwerk). Een <b>broader/narrower</b>-boom (SKOS) legt zo de hele begrippenhiërarchie vast.",
+        run: () => { const id = findExact("IMEV", "aandachtsgebied"); if (id) focusNode(id, 2); } },
+      { t: "Stap 3 — Binnen één model",
+        h: "Classificatie ≠ harmonisatie",
+        x: "Deze hele structuur zit <b>binnen IMEV</b>; er lopen geen koppelingen naar de basisregistraties. Dit is een andere vorm van semantiek dan demo 1: daar ging het om hetzelfde begrip <i>over</i> modellen (harmonisatie), hier om de opbouw <i>binnen</i> een model (classificatie).",
+        run: () => { markActive("bron:IMEV"); doorsnedeBron("IMEV"); } },
+      { t: "Conclusie",
+        h: "Twee soorten semantische hulp",
+        x: "Een informatievraag leunt op beide: <b>classificatie</b> (welke soorten/​begrippen bestaan er, hoe genest) én <b>harmonisatie</b> (betekenen begrippen over registers heen hetzelfde). De browser maakt allebei zichtbaar — en waar ze ontbreken.",
+        run: () => { const id = findExact("IMEV", "aandachtsgebied"); if (id) focusNode(id, 2); } },
+    ];
+    const demos = { harmonisatie: HARMONISATIE, taxonomie: TAXONOMIE };
+    let currentSteps = HARMONISATIE;
     let demoI = 0;
     function runDemo(i) {
-      demoI = Math.max(0, Math.min(demoSteps.length - 1, i));
-      const s = demoSteps[demoI];
+      demoI = Math.max(0, Math.min(currentSteps.length - 1, i));
+      const s = currentSteps[demoI];
       document.getElementById("demo").style.display = "block";
-      document.getElementById("demoStep").textContent = `Stap ${demoI + 1} / ${demoSteps.length}`;
+      document.getElementById("demoStep").textContent = `Stap ${demoI + 1} / ${currentSteps.length}`;
       document.getElementById("demoTitle").textContent = s.h;
       document.getElementById("demoText").innerHTML = s.x;
       document.getElementById("demoPrev").style.visibility = demoI === 0 ? "hidden" : "visible";
-      document.getElementById("demoNext").textContent = demoI === demoSteps.length - 1 ? "Klaar" : "Volgende ›";
+      document.getElementById("demoNext").textContent = demoI === currentSteps.length - 1 ? "Klaar" : "Volgende ›";
       controls.autoRotate = false;
       try { s.run(); } catch (e) {}
     }
-    document.getElementById("demoBtn").onclick = () => runDemo(0);
+    document.getElementById("demoSel").onchange = (e) => {
+      const d = demos[e.target.value];
+      if (d) { currentSteps = d; runDemo(0); }
+      e.target.selectedIndex = 0;
+    };
     document.getElementById("demoPrev").onclick = () => runDemo(demoI - 1);
-    document.getElementById("demoNext").onclick = () => { if (demoI === demoSteps.length - 1) document.getElementById("demo").style.display = "none"; else runDemo(demoI + 1); };
+    document.getElementById("demoNext").onclick = () => { if (demoI === currentSteps.length - 1) document.getElementById("demo").style.display = "none"; else runDemo(demoI + 1); };
     document.getElementById("demoClose").onclick = () => { document.getElementById("demo").style.display = "none"; };
 
     let t;
