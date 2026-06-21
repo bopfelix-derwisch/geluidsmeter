@@ -294,7 +294,7 @@ def _rev_connector() -> RevConnector:
     rev = ll.get("rev", {})
     return RevConnector(
         base_url=rev.get("ogc_base_url", ""),
-        collection=rev.get("collection", ""),
+        collections=rev.get("collections", []),
         max_features=rev.get("max_features", 500),
         cache_dir=ll.get("cache_dir", "/tmp/llab_cache"),
     )

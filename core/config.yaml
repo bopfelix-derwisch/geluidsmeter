@@ -61,13 +61,21 @@ leefomgevinglab:
   cache_dir: "/mnt/nvme/geluidsmeter/data/cache"
   rev:
     ogc_base_url: "https://api.pdok.nl/rws/productie-en-industrie-productiefaciliteiten/ogc/v1"
-    collection: "production_facility_f"
+    # Productiefaciliteiten zijn per sector over meerdere collections verdeeld;
+    # de connector voegt ze samen en tagt elk object met property rev_sector.
+    collections:
+      - production_facility_c   # Productie
+      - production_facility_h   # Transport en opslagdiensten
+      - production_facility_e   # Watervoorziening, riolering, afvalbeheer, sanering
+      - production_facility_d   # Stroom, gas, stoom, airco
+      - production_facility_b   # Winning van delfstoffen
+      - production_facility_f   # Bouw
     max_features: 500
   llm:
     base_url: "http://localhost:8080/v1"
     model: "qwen2.5-32b"
     timeout_s: 60
   viewer:
-    center_lat: 52.08
-    center_lon: 4.29
-    zoom: 13
+    center_lat: 51.885
+    center_lon: 4.27
+    zoom: 12

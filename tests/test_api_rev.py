@@ -7,7 +7,7 @@ def _client_with_config(monkeypatch):
     api._config = {
         "leefomgevinglab": {
             "cache_dir": "/tmp/llab_test_cache",
-            "rev": {"ogc_base_url": "https://x", "collection": "c", "max_features": 500},
+            "rev": {"ogc_base_url": "https://x", "collections": ["c"], "max_features": 500},
             "llm": {"base_url": "http://localhost:8080/v1", "model": "qwen2.5-32b", "timeout_s": 60},
         }
     }
