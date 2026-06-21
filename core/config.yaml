@@ -105,6 +105,14 @@ leefomgevinglab:
     # externe veiligheid (Geonovum/imev). Geverifieerd 2026-06-21.
     vocab_json_urls:
       - "https://raw.githubusercontent.com/Geonovum/imev/main/informatiemodel/IMEV_vocab_export_DSO.json"
+  ld:
+    kkg_endpoint: "https://api.labs.kadaster.nl/datasets/kadaster/kkg/services/kkg/sparql"
+    store_dir: "/mnt/nvme/geluidsmeter/data/ld"
+    provincie: "Zuid-Holland"
+    # REV-bron + Seveso-filter. Bevestig de exacte property/waarde tegen een REV-respons
+    # (zie Task 2 Step 0) voordat je hierop leunt; null = (voorlopig) alle productiefaciliteiten.
+    seveso_property: null
+    seveso_values: []
   viewer:
     center_lat: 51.885
     center_lon: 4.27
