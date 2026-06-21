@@ -94,6 +94,13 @@ leefomgevinglab:
     base_url: "http://localhost:8080/v1"
     model: "qwen2.5-32b"
     timeout_s: 60
+  semantiek:
+    store_dir: "/mnt/nvme/geluidsmeter/data/semantiek"
+    # Open IMX-Geo linked data (geen key). SKOS-conceptscheme = schone koppelingen;
+    # MIM-export = rijker model. Geverifieerd 2026-06-21.
+    ttl_urls:
+      - "https://raw.githubusercontent.com/geonovum/IMX-Geo/main/conceptscheme/imxgeo-skos.ttl"
+      - "https://raw.githubusercontent.com/geonovum/IMX-Geo/main/mim-ld-export/model/imx-geo-mim.ttl"
   viewer:
     center_lat: 51.885
     center_lon: 4.27

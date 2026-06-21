@@ -24,6 +24,7 @@ from functools import partial
 from leefomgevinglab.rag.embed import embed_texts
 from leefomgevinglab.rag.store import VectorStore
 from leefomgevinglab.usecases.vergunningen import chatbot
+from leefomgevinglab.semantiek import graph as semantiek_graph
 
 
 class MobileSubmission(BaseModel):
@@ -414,3 +415,56 @@ def api_chat(req: ChatRequest):
 @app.get("/chatbot", response_class=HTMLResponse)
 def chatbot_page():
     return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "chat.html").read_text()
+
+
+def _semantiek_graph():
+    sem = _config.get("leefomgevinglab", {}).get("semantiek", {})
+    return semantiek_graph.load_graph(sem.get("store_dir", ""))
+
+
+@app.get("/api/semantiek/graph")
+def api_semantiek_graph(zoekTerm: str | None = None, bron: str | None = None):
+    graph = _semantiek_graph()
+    if graph is None:
+        return {"elements": {"nodes": [], "edges": []}, "bronnen": [], "beschikbaar": False}
+    nodes, edges = graph["nodes"], graph["edges"]
+    if bron:
+        keep = {n["data"]["id"] for n in nodes if n["data"]["bron"] in (bron, "IMX-Geo")}
+        nodes = [n for n in nodes if n["data"]["id"] in keep]
+        edges = [e for e in edges if e["data"]["source"] in keep and e["data"]["target"] in keep]
+    if zoekTerm:
+        z = zoekTerm.lower()
+        match = {n["data"]["id"] for n in nodes
+                 if z in n["data"]["label"].lower() or z in (n["data"].get("definitie") or "").lower()}
+        keep = set(match)
+        for e in edges:
+            if e["data"]["source"] in match:
+                keep.add(e["data"]["target"])
+            if e["data"]["target"] in match:
+                keep.add(e["data"]["source"])
+        nodes = [n for n in nodes if n["data"]["id"] in keep]
+        edges = [e for e in edges if e["data"]["source"] in keep and e["data"]["target"] in keep]
+    return {"elements": {"nodes": nodes, "edges": edges}, "bronnen": graph["bronnen"], "beschikbaar": True}
+
+
+@app.get("/api/semantiek/node")
+def api_semantiek_node(uri: str):
+    graph = _semantiek_graph()
+    if graph is None:
+        raise HTTPException(status_code=404, detail="Geen graaf beschikbaar")
+    by_id = {n["data"]["id"]: n for n in graph["nodes"]}
+    node = by_id.get(uri)
+    if node is None:
+        raise HTTPException(status_code=404, detail="Node niet gevonden")
+    buren = []
+    for e in graph["edges"]:
+        if e["data"]["source"] == uri and e["data"]["target"] in by_id:
+            buren.append({"node": by_id[e["data"]["target"]], "relatie": e["data"]["relatie"]})
+        elif e["data"]["target"] == uri and e["data"]["source"] in by_id:
+            buren.append({"node": by_id[e["data"]["source"]], "relatie": e["data"]["relatie"]})
+    return {"node": node, "buren": buren}
+
+
+@app.get("/semantiek", response_class=HTMLResponse)
+def semantiek_page():
+    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "semantiek.html").read_text()
