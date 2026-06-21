@@ -26,6 +26,8 @@ from leefomgevinglab.rag.store import VectorStore
 from leefomgevinglab.usecases.vergunningen import chatbot
 from leefomgevinglab.semantiek import graph as semantiek_graph
 from leefomgevinglab.ld import store as ld_store
+from leefomgevinglab.usecases.datavraag import grounding as dv_grounding
+from leefomgevinglab.usecases.datavraag import service as dv_service
 
 
 class MobileSubmission(BaseModel):
@@ -494,3 +496,33 @@ def api_ld_sparql(req: LdSparqlRequest):
         return {"rows": ld_store.run_sparql(g, req.query), "beschikbaar": True}
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Ongeldige SPARQL: {exc}")
+
+
+def _dv_graph():
+    ld = _config.get("leefomgevinglab", {}).get("ld", {})
+    return ld_store.load_graph(ld.get("store_dir", ""))
+
+
+def _dv_grounding():
+    shapes = Path(__file__).parent.parent / "leefomgevinglab" / "ld" / "shapes.ttl"
+    txt = shapes.read_text() if shapes.exists() else ""
+    return dv_grounding.build_grounding(txt)
+
+
+class DatavraagRequest(BaseModel):
+    vraag: str
+
+
+@app.post("/api/datavraag")
+def api_datavraag(req: DatavraagRequest):
+    g = _dv_graph()
+    llm = _config.get("leefomgevinglab", {}).get("llm", {})
+    return dv_service.beantwoord(
+        req.vraag, g, _dv_grounding(),
+        llm_base_url=llm.get("base_url", "http://localhost:8080/v1"),
+        model=llm.get("model", "qwen2.5-32b"), timeout_s=llm.get("timeout_s", 60))
+
+
+@app.get("/datavraag", response_class=HTMLResponse)
+def datavraag_page():
+    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "datavraag.html").read_text()
