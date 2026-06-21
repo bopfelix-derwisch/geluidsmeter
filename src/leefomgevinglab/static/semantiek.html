@@ -54,10 +54,23 @@
   <header>
     <a href="/">← LeefomgevingLab</a>
     <strong style="color:#2ecc8f">Semantische browser</strong>
+    <button id="demoBtn" style="padding:6px 12px;border:none;border-radius:8px;background:linear-gradient(135deg,#2ecc8f,#26a69a);color:#042;font-weight:700;cursor:pointer;font-size:13px">▶ Demo: informatievraag</button>
     <input id="zoek" placeholder="filter objecten…" />
   </header>
   <div id="graph"></div>
   <div class="hint">Sleep om te draaien · scroll/knijp om te zoomen</div>
+  <div id="demo" style="display:none; position:absolute; left:16px; bottom:16px; right:356px; max-width:560px;
+       background:rgba(13,27,42,.96); border:1px solid #2ecc8f; border-radius:10px; padding:14px 16px; z-index:9;">
+    <div style="font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:#2ecc8f" id="demoStep"></div>
+    <h3 id="demoTitle" style="margin:4px 0 6px"></h3>
+    <p id="demoText" style="font-size:13px; color:#cfd8dc; line-height:1.6"></p>
+    <div style="margin-top:10px; display:flex; gap:8px; align-items:center">
+      <button id="demoPrev" style="padding:5px 12px;border:1px solid #1a3a5c;border-radius:8px;background:transparent;color:#8aa0b2;cursor:pointer">‹ Vorige</button>
+      <button id="demoNext" style="padding:5px 12px;border:none;border-radius:8px;background:#2ecc8f;color:#042;font-weight:700;cursor:pointer">Volgende ›</button>
+      <span style="flex:1"></span>
+      <button id="demoClose" style="padding:5px 10px;border:none;border-radius:8px;background:transparent;color:#8aa0b2;cursor:pointer">Sluiten ✕</button>
+    </div>
+  </div>
   <div id="panel">
     <div class="lbl">Doorsnede</div>
     <div id="doorsnedes" class="chips"></div>
@@ -248,6 +261,56 @@
       renderDoorsnedes(); renderObjectList(""); renderLegend();
       markActive("cross"); doorsnedeCross();   // startbeeld
     }
+
+    // ── Demo: hoe helpt semantiek een informatievraag beantwoorden ──
+    function findId(bron, labelSub) {
+      const s = labelSub.toLowerCase();
+      const hit = Object.values(nodesById).find(n => n.bron === bron && n.label.toLowerCase().includes(s));
+      return hit ? hit.id : null;
+    }
+    const demoSteps = [
+      { t: "De informatievraag",
+        h: "Is dit gebouw 'kwetsbaar' voor externe veiligheid?",
+        x: "Stel: je wilt van een <b>gebouw</b> weten of het kwetsbaar is in het kader van externe veiligheid. Welke begrippen en registers heb je nodig — en bedoelen ze hetzelfde? De semantiek maakt dat zichtbaar. We starten bij de cross-model koppelingen.",
+        run: () => { markActive("cross"); doorsnedeCross(); } },
+      { t: "Stap 1 — 'Gebouw' in IMX-Geo",
+        h: "Wat is een gebouw, volgens de basismodellen?",
+        x: "We kiezen het objecttype <b>Gebouw</b> (IMX-Geo). Je ziet zijn ego-netwerk: het verwijst via <b>begrip</b> naar de <b>NEN3610</b>-definitie van 'gebouw', is een <b>supertype</b> van Bouwwerk, en hangt via een <b>associatie</b> aan Adres.",
+        run: () => { const id = findId("IMX-Geo", "gebouw"); if (id) focusNode(id, 1); } },
+      { t: "Stap 2 — Harmonisatie",
+        h: "Bedoelen BAG/IMX-Geo hetzelfde 'gebouw'?",
+        x: "Omdat IMX-Geo via <b>mim:begrip</b> naar de gedeelde NEN3610-definitie wijst, weet je dat 'gebouw' over de basisregistraties heen hetzelfde betekent. Dáárom kun je gebouw-data betrouwbaar koppelen. (Diepte 2 toont ook de buren-van-buren.)",
+        run: () => { const id = findId("IMX-Geo", "gebouw"); if (id) focusNode(id, 2); } },
+      { t: "Stap 3 — Externe veiligheid (IMEV)",
+        h: "Kent het veiligheidsmodel 'kwetsbaar gebouw'?",
+        x: "IMEV (externe veiligheid) kent <b>kwetsbaargebouw</b>. Maar let op: dit begrip zit in een <b>aparte IMEV-cluster</b> met eigen relaties — er is géén open koppeling naar het IMX-Geo/NEN3610-'gebouw'.",
+        run: () => { const id = findId("IMEV", "kwetsbaargebouw") || findId("IMEV", "gebouw"); if (id) focusNode(id, 1); } },
+      { t: "Stap 4 — De stelsel-gap",
+        h: "Hier raakt je vraag een gat in het stelsel",
+        x: "Om 'gebouw' (basisregistraties) aan 'kwetsbaargebouw' (externe veiligheid) te verbinden, mis je in de open data de brug. Die relatie ligt in de <b>Stelselcatalogus</b> — afgeschermd achter een DSO-key. Het netwerk maakt dat gat zélf zichtbaar.",
+        run: () => { markActive("cross"); doorsnedeCross(); } },
+      { t: "Conclusie",
+        h: "Wat heeft de semantiek opgeleverd?",
+        x: "De semantiek beantwoordt de vraag deels — ze toont wélke begrippen bestaan en dat 'gebouw' geharmoniseerd is (NEN3610) — én ze maakt zichtbaar wáár het stelsel nog werk vergt (IMEV ↔ basisregistraties). Precies wat je in een leerproject wilt zien: betekenis én lacunes.",
+        run: () => { const id = findId("IMX-Geo", "gebouw"); if (id) focusNode(id, 2); } },
+    ];
+    let demoI = 0;
+    function runDemo(i) {
+      demoI = Math.max(0, Math.min(demoSteps.length - 1, i));
+      const s = demoSteps[demoI];
+      document.getElementById("demo").style.display = "block";
+      document.getElementById("demoStep").textContent = `Stap ${demoI + 1} / ${demoSteps.length}`;
+      document.getElementById("demoTitle").textContent = s.h;
+      document.getElementById("demoText").innerHTML = s.x;
+      document.getElementById("demoPrev").style.visibility = demoI === 0 ? "hidden" : "visible";
+      document.getElementById("demoNext").textContent = demoI === demoSteps.length - 1 ? "Klaar" : "Volgende ›";
+      controls.autoRotate = false;
+      try { s.run(); } catch (e) {}
+    }
+    document.getElementById("demoBtn").onclick = () => runDemo(0);
+    document.getElementById("demoPrev").onclick = () => runDemo(demoI - 1);
+    document.getElementById("demoNext").onclick = () => { if (demoI === demoSteps.length - 1) document.getElementById("demo").style.display = "none"; else runDemo(demoI + 1); };
+    document.getElementById("demoClose").onclick = () => { document.getElementById("demo").style.display = "none"; };
 
     let t;
     document.getElementById("zoek").addEventListener("input", e => {
