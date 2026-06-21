@@ -17,6 +17,9 @@ from .source_match import get_rivm_lden
 from leefomgevinglab.connectors.base import ConnectorError
 from leefomgevinglab.connectors.rev import RevConnector
 from leefomgevinglab.usecases.rev_viewer import service as rev_service
+import os
+from leefomgevinglab.connectors.dso import DsoConnector
+from leefomgevinglab.usecases.vergunningen import service as vergunningen_service
 
 
 class MobileSubmission(BaseModel):
@@ -334,3 +337,25 @@ def api_duiding(req: DuidingRequest):
 def viewer_page():
     viewer_html = Path(__file__).parent.parent / "leefomgevinglab" / "viewer" / "static" / "viewer.html"
     return viewer_html.read_text()
+
+
+def _dso_connector() -> DsoConnector:
+    ll = _config.get("leefomgevinglab", {})
+    dso = ll.get("dso", {})
+    return DsoConnector(
+        base_url=dso.get("base_url", ""),
+        operation_path=dso.get("operation_path", ""),
+        api_key=os.environ.get("DSO_API_KEY"),
+        api_key_header=dso.get("api_key_header", "x-api-key"),
+        cache_dir=ll.get("cache_dir", "/tmp/llab_cache"),
+    )
+
+
+class RegelsRequest(BaseModel):
+    activiteit: str
+    locatie: dict | None = None
+
+
+@app.post("/api/regels")
+def api_regels(req: RegelsRequest):
+    return vergunningen_service.regels_opzoeken(req.activiteit, req.locatie, _dso_connector())
