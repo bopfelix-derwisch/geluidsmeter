@@ -516,11 +516,15 @@ class DatavraagRequest(BaseModel):
 @app.post("/api/datavraag")
 def api_datavraag(req: DatavraagRequest):
     g = _dv_graph()
-    llm = _config.get("leefomgevinglab", {}).get("llm", {})
+    ll = _config.get("leefomgevinglab", {})
+    llm = ll.get("llm", {})
+    ld = ll.get("ld", {})
     return dv_service.beantwoord(
         req.vraag, g, _dv_grounding(),
         llm_base_url=llm.get("base_url", "http://localhost:8080/v1"),
-        model=llm.get("model", "qwen2.5-32b"), timeout_s=llm.get("timeout_s", 60))
+        model=llm.get("model", "qwen2.5-32b"), timeout_s=llm.get("timeout_s", 60),
+        kkg_endpoint=ld.get("kkg_endpoint", ""), provincie=ld.get("provincie", "Zuid-Holland"),
+        straal_m=ld.get("nabijheid_straal_m", 500))
 
 
 @app.get("/datavraag", response_class=HTMLResponse)

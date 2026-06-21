@@ -115,6 +115,8 @@ leefomgevinglab:
     # Optioneel generiek property-filter (callable in build_rev_graph); null = alle features.
     filter_property: null
     filter_values: []
+    # Nabijheid-straal (m) voor de datavraag "in de buurt van een school".
+    nabijheid_straal_m: 500
   viewer:
     center_lat: 51.885
     center_lon: 4.27
