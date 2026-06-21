@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>LeefomgevingLab — Semantische browser (3D)</title>
   <script src="https://unpkg.com/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
+  <script src="https://unpkg.com/three-spritetext@1.8.2/dist/three-spritetext.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: system-ui, sans-serif; background: #080c14; color: #e0e6ed; overflow: hidden; }
@@ -62,23 +63,40 @@
     }
 
     const el = document.getElementById("graph");
-    const Graph = ForceGraph3D()(el)
+    let didFit = false;
+    const Graph = ForceGraph3D({ controlType: "orbit" })(el)
       .backgroundColor("#080c14")
-      .nodeLabel(n => `${n.label} — ${n.bron}`)
-      .nodeColor(n => colorFor(n.bron))
-      .nodeOpacity(0.95)
-      .nodeRelSize(4)
-      .linkColor(() => "#2a4258")
-      .linkWidth(0.6)
-      .linkOpacity(0.5)
+      // Altijd zichtbare 3D-tekstlabels, gekleurd per bron
+      .nodeThreeObject(node => {
+        const s = new SpriteText(node.label);
+        s.color = colorFor(node.bron);
+        s.textHeight = 5;
+        s.fontWeight = "600";
+        return s;
+      })
+      .nodeLabel(n => n.bron)
+      .linkColor(() => "#3a5571")
+      .linkWidth(0.5)
+      .linkOpacity(0.45)
+      .linkDirectionalArrowLength(2.5)
+      .linkDirectionalArrowRelPos(1)
       .linkDirectionalParticles(2)
-      .linkDirectionalParticleWidth(1.6)
+      .linkDirectionalParticleWidth(1.4)
       .linkDirectionalParticleSpeed(0.006)
+      .linkLabel(l => l.relatie)
       .onNodeClick(node => {
-        const ratio = 1 + 110 / Math.max(1, Math.hypot(node.x || 1, node.y || 1, node.z || 1));
+        const ratio = 1 + 140 / Math.max(1, Math.hypot(node.x || 1, node.y || 1, node.z || 1));
         Graph.cameraPosition({ x: node.x * ratio, y: node.y * ratio, z: node.z * ratio }, node, 800);
         showNode(node.id);
-      });
+      })
+      .onEngineStop(() => { if (!didFit) { didFit = true; Graph.zoomToFit(600, 30); } });
+
+    // Langzaam ronddraaien tot de gebruiker het netwerk aanraakt
+    const controls = Graph.controls();
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.55;
+    ["start", "pointerdown", "wheel"].forEach(ev =>
+      el.addEventListener(ev, () => { controls.autoRotate = false; }, { passive: true }));
 
     function fitSize() { Graph.width(el.clientWidth).height(el.clientHeight); }
     window.addEventListener("resize", fitSize);
@@ -98,6 +116,7 @@
       const nodes = data.elements.nodes.map(n => ({ id: n.data.id, label: n.data.label, bron: n.data.bron }));
       const links = data.elements.edges.map(e => ({ source: e.data.source, target: e.data.target, relatie: e.data.relatie }));
       fitSize();
+      didFit = false;
       Graph.graphData({ nodes, links });
     }
 
