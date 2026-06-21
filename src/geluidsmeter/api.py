@@ -124,9 +124,10 @@ def _mobile_location_entries(rivm_gdf=None) -> list[dict]:
     return entries
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def root():
-    return RedirectResponse(url="/public")
+    landing = Path(__file__).parent.parent / "leefomgevinglab" / "static" / "index.html"
+    return landing.read_text()
 
 
 @app.get("/health")
