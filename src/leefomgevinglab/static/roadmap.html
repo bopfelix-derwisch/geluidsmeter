@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LeefomgevingLab — Roadmap</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #080c14; --panel: #0d1b2a; --panel2: #0a1220; --border: #1a3a5c;
+      --accent: #2ecc8f; --accent2: #26a69a; --text: #e0e6ed; --muted: #8aa0b2;
+      --dim: #5b7385; --warn: #ffb74d;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; }
+    a { color: inherit; text-decoration: none; }
+
+    header {
+      background: var(--panel); border-bottom: 1px solid var(--border);
+      padding: 12px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    }
+    header .mark { width: 22px; height: 22px; border-radius: 6px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2)); flex: none; }
+    header h1 { font-size: 15px; color: var(--accent); white-space: nowrap; font-weight: 700; }
+    .badge { font-size: 10px; padding: 2px 9px; border-radius: 10px; white-space: nowrap;
+      border: 1px solid var(--border); color: var(--muted); }
+    header nav { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+    header nav a { font-size: 12px; color: var(--muted); padding: 4px 10px; border-radius: 12px; border: 1px solid transparent; }
+    header nav a:hover { border-color: var(--border); color: var(--accent); }
+
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+    .hero { padding: 48px 0 28px; border-bottom: 1px solid var(--border); }
+    .hero h2 { font-size: 28px; font-weight: 800; letter-spacing: -.5px; color: #eafff6; margin-bottom: 12px; }
+    .hero p { color: var(--muted); max-width: 760px; font-size: 15px; }
+
+    .note { margin: 22px 0 0; padding: 12px 16px; border-radius: 8px;
+      background: rgba(255,183,77,.08); border: 1px solid #5a4520; color: #e8c98a; font-size: 13px; }
+    .note b { color: var(--warn); }
+
+    section { padding: 32px 0; border-bottom: 1px solid var(--border); }
+    section:last-of-type { border-bottom: none; }
+    .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); margin-bottom: 16px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid var(--border); padding: 8px 11px; text-align: left; vertical-align: top; }
+    th { background: var(--panel); color: #b0c4ce; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+    tr:nth-child(even) td { background: var(--panel2); }
+    td code { color: var(--accent); background: #04140d; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+    .st-live { color: var(--accent); font-weight: 700; white-space: nowrap; }
+    .st-block { color: var(--warn); font-weight: 700; white-space: nowrap; }
+    .st-plan { color: var(--dim); font-weight: 700; white-space: nowrap; }
+    td a { color: #4fc3f7; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+    .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+    .card h3 { font-size: 14px; color: #eafff6; }
+    .card p { font-size: 12px; color: var(--muted); }
+    .card .src { font-size: 11px; color: var(--dim); margin-top: auto; }
+
+    footer { padding: 26px 0 48px; color: var(--dim); font-size: 12px; }
+    footer a { color: var(--muted); text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="mark"></div>
+    <h1>LeefomgevingLab</h1>
+    <span class="badge">roadmap</span>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/viewer">REV-viewer</a>
+      <a href="/chatbot">Chatbot</a>
+      <a href="/public">Geluidsmeter</a>
+    </nav>
+  </header>
+
+  <div class="wrap">
+    <div class="hero">
+      <h2>Roadmap &amp; backlog</h2>
+      <p>
+        De stand van zaken van LeefomgevingLab: wat er live draait, wat geblokkeerd is op een
+        externe afhankelijkheid, en wat op de planning staat. Elke use-case staat op echte open
+        data of een open API; nieuw thema = nieuwe connector, geen nieuw systeem.
+      </p>
+      <div class="note">
+        <b>Nog geen externe review.</b> Het werk is per feature intern getoetst (test-driven,
+        per-taak code-review en een whole-branch review per plan), maar er heeft nog <b>geen
+        externe/vakgenoot-review</b> plaatsgevonden — anders dan bij WaterLab, waar de roadmap
+        juist op de review-opvolging is gebouwd. Een externe review is zelf een backlog-item.
+      </div>
+    </div>
+
+    <section>
+      <div class="section-title">Nu live</div>
+      <table>
+        <thead><tr><th>Use-case</th><th>Status</th><th>Waar</th><th>Bron</th></tr></thead>
+        <tbody>
+          <tr><td>Leefomgeving-landing</td><td class="st-live">✓ live</td><td><a href="/">/</a></td><td>—</td></tr>
+          <tr><td>REV-viewer (externe veiligheid) + AI-duiding</td><td class="st-live">✓ live</td><td><a href="/viewer">/viewer</a> · <code>/api/rev/features</code></td><td>REV via PDOK OGC API Features</td></tr>
+          <tr><td>Vergunningen-chatbot (RAG op IPLO)</td><td class="st-live">✓ live</td><td><a href="/chatbot">/chatbot</a> · <code>/api/chat</code></td><td>IPLO + lokale bge-m3 + Qwen</td></tr>
+          <tr><td>Geluidsmeter publiek + dashboard</td><td class="st-live">✓ live</td><td><a href="/public">/public</a> · <a href="/dashboard">/dashboard</a></td><td>eigen sensor + RIVM/CVGG</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <div class="section-title">Geblokkeerd op externe afhankelijkheid</div>
+      <table>
+        <thead><tr><th>Item</th><th>Status</th><th>Blokkade</th></tr></thead>
+        <tbody>
+          <tr><td>Regels-opzoeken (DSO Toepasbare Regels)</td><td class="st-block">⏳ wacht</td><td>DSO-API-key aanvragen; <code>operation_path</code>/header bevestigen tegen OpenAPI-spec. <code>/api/regels</code> degradeert nu naar <code>beschikbaar:false</code>.</td></tr>
+          <tr><td>Rules-as-code in de chatbot</td><td class="st-block">⏳ wacht</td><td>Zelfde DSO-key; chatbot leunt nu puur op RAG-over-IPLO.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <div class="section-title">Backlog &amp; gepland</div>
+      <div class="grid">
+        <div class="card">
+          <h3>Lucht &amp; afval</h3>
+          <p>Burger- + gevalideerde luchtmetingen op kaart; afvalstroom-indicatoren per regio.</p>
+          <div class="src">Samen Meten · Luchtmeetnet · LMA-aggregaat</div>
+        </div>
+        <div class="card">
+          <h3>Stelselcatalogus / begrippen (UC-09)</h3>
+          <p>Semantische verkenner als fundament onder chatbot en dashboards. Endpoint nog te bevestigen.</p>
+          <div class="src">DSO Stelselcatalogus</div>
+        </div>
+        <div class="card">
+          <h3>BRZO/Seveso-toezicht (UC-12)</h3>
+          <p>Openbare inspectiesamenvattingen koppelen aan REV-objecten op de kaart.</p>
+          <div class="src">seveso-plus.nl (scrapen + RAG)</div>
+        </div>
+        <div class="card">
+          <h3>RAG-uitbreiding</h3>
+          <p>Meer IPLO-bronnen, automatische index-herbouw (cron), DSO-rules meewegen in het antwoord.</p>
+          <div class="src">scripts/07_build_rag_index.py</div>
+        </div>
+        <div class="card">
+          <h3>Externe review</h3>
+          <p>Vakgenoot-review op herkomst, correctheid en duiding — net als de WaterLab-review.</p>
+          <div class="src">nog te plannen</div>
+        </div>
+        <div class="card">
+          <h3>Hardening</h3>
+          <p>Kleine opgeschorte punten: chat-frontend output-escaping, niet-atomische cache-write, DSO veld-mapping.</p>
+          <div class="src">uit de whole-branch reviews</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      Indicatief, geen operationeel systeem. Onderdeel van de felixisfelix-labs ·
+      <a href="https://waterlab.felixisfelix.com">WaterLab</a>.
+    </div>
+  </footer>
+</body>
+</html>

@@ -137,6 +137,11 @@ def root():
     return landing.read_text()
 
 
+@app.get("/roadmap", response_class=HTMLResponse)
+def roadmap_page():
+    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "roadmap.html").read_text()
+
+
 @app.get("/health")
 def health():
     return {"status": "ok", "project": "geluidsmeter", "ts": datetime.now(timezone.utc).isoformat()}
