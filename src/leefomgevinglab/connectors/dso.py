@@ -24,6 +24,8 @@ class DsoConnector(BaseConnector):
         self.api_key_header = api_key_header
 
     def _headers(self, extra: dict | None = None) -> dict:
+        if not self.api_key:
+            raise ConnectorError("Geen DSO_API_KEY geconfigureerd")
         h = {self.api_key_header: self.api_key}
         if extra:
             h.update(extra)
@@ -31,8 +33,6 @@ class DsoConnector(BaseConnector):
 
     def bepaal_typeringen(self, refs: list[str], geo_rd: tuple[float, float],
                           datum: str | None = None) -> list[dict]:
-        if not self.api_key:
-            raise ConnectorError("Geen DSO_API_KEY geconfigureerd")
         url = f"{self.rtr_base_url}/werkzaamheden/_bepaalRegelbeheerobjectTyperingen"
         body = {"functioneleStructuurRefs": list(refs), "_geo": _geo_point(geo_rd)}
         if datum:
@@ -41,8 +41,6 @@ class DsoConnector(BaseConnector):
 
     def bepaal_indieningsvereisten(self, refs: list[str], geo_rd: tuple[float, float],
                                    datum: str | None = None) -> list[dict]:
-        if not self.api_key:
-            raise ConnectorError("Geen DSO_API_KEY geconfigureerd")
         url = f"{self.uitvoeren_base_url}/indieningsvereisten/_bepaal"
         body = {
             "functioneleStructuurRefs": [{"functioneleStructuurRef": r, "antwoorden": []} for r in refs],
