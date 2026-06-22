@@ -36,6 +36,7 @@ def test_regels_happy(monkeypatch):
 
     monkeypatch.setattr(api, "_zoek_connector", lambda: _Zoek())
     monkeypatch.setattr(api, "_dso_connector", lambda: _Dso())
+    monkeypatch.setattr(api, "_llm_cfg", lambda: {"llm_base_url": "http://llm/v1", "model": "qwen", "timeout_s": 5})
     r = client.post("/api/regels", json={"activiteit": "dakkapel", "locatie": {"lat": 52.0, "lon": 5.0}})
     assert r.status_code == 200
     body = r.json()
@@ -64,6 +65,7 @@ def test_regels_zoekbron_down_200_unavailable(monkeypatch):
 
     monkeypatch.setattr(api, "_zoek_connector", lambda: _Zoek())
     monkeypatch.setattr(api, "_dso_connector", lambda: object())
+    monkeypatch.setattr(api, "_llm_cfg", lambda: {"llm_base_url": "http://llm/v1", "model": "qwen", "timeout_s": 5})
     r = client.post("/api/regels", json={"activiteit": "x", "locatie": {"lat": 52.0, "lon": 5.0}})
     assert r.status_code == 200
     assert r.json()["beschikbaar"] is False
