@@ -53,3 +53,40 @@ def test_error_with_stale_cache_returns_cache(tmp_path, monkeypatch):
 
     monkeypatch.setattr(httpx, "get", fake_get)
     assert c.get_json("https://x/api") == {"stale": True}
+
+
+def test_post_json_sends_body_and_caches(tmp_path, monkeypatch):
+    calls = {}
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        calls["url"] = url
+        calls["json"] = json
+        calls["headers"] = headers
+        return _FakeResponse({"ok": True})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    c = BaseConnector(cache_dir=str(tmp_path))
+    out = c.post_json("https://x/op", json_body={"a": 1}, headers={"x-api-key": "K"})
+    assert out == {"ok": True}
+    assert calls["json"] == {"a": 1}
+    assert calls["headers"]["x-api-key"] == "K"
+
+    # tweede call met dezelfde body komt uit cache, ook als het netwerk faalt
+    def boom(*a, **k):
+        raise httpx.ConnectError("down")
+
+    monkeypatch.setattr(httpx, "post", boom)
+    assert c.post_json("https://x/op", json_body={"a": 1}) == {"ok": True}
+
+
+def test_post_json_raises_without_cache(tmp_path, monkeypatch):
+    def boom(*a, **k):
+        raise httpx.ConnectError("down")
+
+    monkeypatch.setattr(httpx, "post", boom)
+    c = BaseConnector(cache_dir=str(tmp_path))
+    try:
+        c.post_json("https://x/op", json_body={"a": 2})
+        assert False, "verwacht ConnectorError"
+    except ConnectorError:
+        pass
