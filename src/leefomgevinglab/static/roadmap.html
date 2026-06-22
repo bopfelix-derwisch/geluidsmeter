@@ -129,8 +129,8 @@
           </tr>
           <tr>
             <td>DSO Registratie Toepasbare Regels</td>
-            <td class="st-block">⚠ gesloten rand</td>
-            <td>Base-URL is openbaar, maar het exacte operatie-pad en de api-key-header staan alleen in de OpenAPI-spec, en de respons is niet inspecteerbaar zonder key. Integratie is pas hard te maken ná het aanvragen van de (gratis) key — bewust afgebakend, niet gegokt.</td>
+            <td class="st-block">⚠ contract geverifieerd</td>
+            <td>Key verkregen; contract <strong>live geverifieerd 2026-06-22</strong>. Bleek af te wijken van de spec-gok: keys werken alleen op <strong>pre-productie</strong> (<code>service.pre.*</code>; productie geeft 401), de echte operatie is <code>POST werkzaamheden/_bepaalRegelbeheerobjectTyperingen</code> (niet <code>_bepaalToepasbareRegels</code>), en het verzoek vraagt <code>functioneleStructuurRefs</code> (werkzaamheid-URI's, geen vrije tekst) + <code>_geo.intersects</code> als GeoJSON-punt in <strong>RD/EPSG:28992</strong>. <code>x-api-key</code>-header bevestigd. Open: vrije-tekst→werkzaamheid-urn resolutie (kruismatrix) + connector-rework.</td>
           </tr>
           <tr>
             <td>IPLO (kennisbron, RAG)</td>
@@ -151,8 +151,8 @@
       <table>
         <thead><tr><th>Item</th><th>Status</th><th>Blokkade</th></tr></thead>
         <tbody>
-          <tr><td>Regels-opzoeken (DSO Toepasbare Regels)</td><td class="st-block">⏳ wacht</td><td>DSO-API-key aanvragen; <code>operation_path</code>/header bevestigen tegen OpenAPI-spec. <code>/api/regels</code> degradeert nu naar <code>beschikbaar:false</code>.</td></tr>
-          <tr><td>Rules-as-code in de chatbot</td><td class="st-block">⏳ wacht</td><td>Zelfde DSO-key; chatbot leunt nu puur op RAG-over-IPLO.</td></tr>
+          <tr><td>Regels-opzoeken (DSO Toepasbare Regels)</td><td class="st-block">◐ contract verified</td><td>Key + contract live bevestigd op pre-prod (2026-06-22). Resteert: connector herschrijven naar het echte POST-protocol (<code>functioneleStructuurRefs</code> + RD-geo) en een vrije-tekst→werkzaamheid-urn resolver. <code>/api/regels</code> degradeert tot dan naar <code>beschikbaar:false</code>.</td></tr>
+          <tr><td>Rules-as-code in de chatbot</td><td class="st-block">⏳ wacht</td><td>Zelfde DSO-key; volgt op de connector-rework. Chatbot leunt nu puur op RAG-over-IPLO.</td></tr>
         </tbody>
       </table>
     </section>

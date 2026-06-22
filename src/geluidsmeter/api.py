@@ -4,6 +4,12 @@ import uuid
 from pathlib import Path
 from datetime import datetime, timezone
 
+from dotenv import load_dotenv
+
+# Laad .env (o.a. DSO_API_KEY) bij import — werkt voor systemd
+# (WorkingDirectory=repo-root) en handmatige uvicorn-runs vanaf de repo-root.
+load_dotenv()
+
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles

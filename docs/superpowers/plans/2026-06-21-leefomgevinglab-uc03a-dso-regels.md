@@ -53,12 +53,29 @@ tests/test_api_regels.py
     `DsoConnector(base_url: str, operation_path: str, api_key: str | None, api_key_header: str = "x-api-key", cache_dir: str = ..., timeout: float = 10.0, cache_ttl: int = 3600)`
   - methode `bepaal_regels(activiteit: str, locatie: dict | None = None) -> dict` die de DSO-respons (JSON) teruggeeft. Raise `ConnectorError` als er geen API-key is.
 
-- [ ] **Step 0: Verify-aantekening (geen code, vereist key/spec)**
+- [x] **Step 0: Verify-aantekening (geen code, vereist key/spec)** — GEVERIFIEERD 2026-06-22
 
-De exacte `operation_path` en `api_key_header` moeten bevestigd worden tegen de OpenAPI-spec
-("ToepasbareRegels-SamengesteldeRTRServices-v2.json") of een live respons zodra `DSO_API_KEY`
-beschikbaar is. Base-URL is geverifieerd (zie config). Tot die tijd zijn pad/header configdefaults.
-Deze stap levert geen code; noteer 'm in het taakrapport als open punt.
+Live bevestigd met `DSO_API_KEY` tegen de OpenAPI-spec én live responses. Uitkomst week af van
+de oorspronkelijke aannames:
+- **Omgeving:** ontwikkelaarsportaal-keys werken alleen op **pre-productie**
+  (`service.pre.omgevingswet.overheid.nl`). Productie (`service.*`) geeft **401 Ongeautoriseerd**.
+  → config `base_url` bijgewerkt naar `service.pre.*`.
+- **api_key_header:** `x-api-key` — **bevestigd correct**.
+- **operation_path:** de gegokte `_bepaalToepasbareRegels` bestaat **niet**. De echte operaties
+  staan onder `/werkzaamheden/...`; de relevante is `POST werkzaamheden/_bepaalRegelbeheerobjectTyperingen`.
+  → config `operation_path` bijgewerkt.
+- **Request-model wijkt fundamenteel af** van de plan-aanname (`GET {activiteit, lat, lon}`):
+  het is een **POST** met body `{functioneleStructuurRefs: [<werkzaamheid-URI>], _geo: {intersects:
+  {type:"Point", coordinates:[x,y]}}}` waarbij coördinaten in **RD/EPSG:28992** zijn (voorbeeld
+  `[155000, 463000]`), plus optioneel `datum`. Live bewijs: `GET /info` → 200 (`rtr-service 38.4.0`),
+  `GET /activiteiten/algemeen` → 200, en de POST valideert correct (`WERKZAAMHEID_NOT_FOUND` met
+  echo van de urn bij een niet-bestaande werkzaamheid).
+
+**Open punt (geen code in deze stap, scope-besluit gebruiker = "stop bij geverifieerde config"):**
+de `DsoConnector` + `/api/regels` bouwen nog het oude GET-model en moeten herschreven worden naar
+dit POST-protocol; daarnaast is een **vrije-tekst `activiteit` → werkzaamheid-urn** resolver nodig
+(bron: DSO "Werkzaamheden beheren" / kruismatrix oefenomgeving) plus WGS84→RD omzetting. Tot dan
+degradeert `/api/regels` naar `beschikbaar:false`. Spec lokaal: `ToepasbareRegels-SamengesteldeRTRServices-v2.json`.
 
 - [ ] **Step 1: Schrijf de falende test**
 
