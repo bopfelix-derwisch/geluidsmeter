@@ -5,6 +5,7 @@ soundfile
 pandas
 pyarrow
 geopandas
+pyproj
 shapely
 duckdb
 pyyaml
