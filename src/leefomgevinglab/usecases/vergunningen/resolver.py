@@ -44,7 +44,7 @@ def kies_werkzaamheid(vraag: str, kandidaten: list[dict], llm_base_url: str, mod
             timeout=timeout_s,
         )
         if resp.status_code >= 400:
-            raise httpx.HTTPStatusError(f"HTTP {resp.status_code}", request=None, response=resp)
+            raise httpx.HTTPError(f"HTTP {resp.status_code}")
         text = resp.json()["choices"][0]["message"]["content"].strip()
         parsed = json.loads(text)
         idx = int(parsed["index"])
