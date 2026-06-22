@@ -47,8 +47,11 @@ def regels_opzoeken(activiteit: str, locatie: dict, zoek_connector, dso_connecto
                      for k in kandidaten if k["urn"] != gekozen["urn"]]
     ref = gekozen["functioneleStructuurRef"]
 
-    # Laag 3: WGS84 -> RD
-    rd = resolver.wgs84_naar_rd(locatie["lat"], locatie["lon"])
+    # Laag 3: WGS84 -> RD (resolutie-kern; faalt dit, dan is geen DSO-query mogelijk)
+    try:
+        rd = resolver.wgs84_naar_rd(locatie["lat"], locatie["lon"])
+    except Exception:
+        return _onbeschikbaar(activiteit)
 
     # Laag 4: regelbeheerobject-typeringen
     try:

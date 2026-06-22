@@ -74,6 +74,8 @@ def test_zoekbron_down_degradeert():
     out = service.regels_opzoeken("dakkapel", LOC, _Zoek(error=True), _Dso(), LLM)
     assert out["beschikbaar"] is False
     assert out["gekozen_werkzaamheid"] is None
+    assert out["onzekerheid"] is True
+    assert out["disclaimer"] == service.DISCLAIMER
 
 
 def test_iv_leeg_status_niet_beschikbaar_op_locatie(monkeypatch):
@@ -101,3 +103,29 @@ def test_typeringen_down_degradeert_alleen_laag4(monkeypatch):
     out = service.regels_opzoeken("dakkapel", LOC, _Zoek(kand=KAND), dso, LLM)
     assert out["beschikbaar"] is True
     assert out["typeringen"] is None
+
+
+def test_kies_geen_match_degradeert(monkeypatch):
+    monkeypatch.setattr(service.resolver, "wgs84_naar_rd", lambda lat, lon: (155000.0, 463000.0))
+    monkeypatch.setattr(service.resolver, "kies_werkzaamheid",
+                        lambda vraag, kand, **cfg: {"gekozen": None, "match_onderbouwing": "",
+                                                    "zekerheid_match": "laag"})
+    out = service.regels_opzoeken("dakkapel", LOC, _Zoek(kand=KAND), _Dso(), LLM)
+    assert out["beschikbaar"] is False
+    assert out["gekozen_werkzaamheid"] is None
+    assert out["disclaimer"] == service.DISCLAIMER
+
+
+def test_locatie_transform_faalt_degradeert(monkeypatch):
+    monkeypatch.setattr(service.resolver, "kies_werkzaamheid",
+                        lambda vraag, kand, **cfg: {"gekozen": kand[0], "match_onderbouwing": "t",
+                                                    "zekerheid_match": "hoog"})
+
+    def _boom(lat, lon):
+        raise ValueError("buiten NL")
+
+    monkeypatch.setattr(service.resolver, "wgs84_naar_rd", _boom)
+    out = service.regels_opzoeken("dakkapel", LOC, _Zoek(kand=KAND), _Dso(), LLM)
+    assert out["beschikbaar"] is False
+    assert out["onzekerheid"] is True
+    assert out["disclaimer"] == service.DISCLAIMER
