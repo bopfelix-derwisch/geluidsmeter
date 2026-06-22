@@ -2,30 +2,47 @@ import pytest
 from leefomgevinglab.connectors.dso import DsoConnector
 from leefomgevinglab.connectors.base import ConnectorError
 
-
-def test_bepaal_regels_builds_request_with_key(tmp_path):
-    captured = {}
-
-    class _Dso(DsoConnector):
-        def get_json(self, url, params=None, headers=None):
-            captured["url"] = url
-            captured["params"] = params
-            captured["headers"] = headers
-            return {"resultaat": "ok"}
-
-    c = _Dso(base_url="https://service.omgevingswet.overheid.nl/x/v2/",
-             operation_path="_bepaalToepasbareRegels",
-             api_key="SECRET", api_key_header="x-api-key", cache_dir=str(tmp_path))
-    out = c.bepaal_regels("kappen van een boom", {"lat": 52.0, "lon": 4.0})
-
-    assert captured["url"] == "https://service.omgevingswet.overheid.nl/x/v2/_bepaalToepasbareRegels"
-    assert captured["headers"]["x-api-key"] == "SECRET"
-    assert captured["params"]["activiteit"] == "kappen van een boom"
-    assert out == {"resultaat": "ok"}
+RTR = "https://x/rtr/v2"
+UITV = "https://x/uitv/v3"
+REF = "http://x/werkzaamheden/id/concept/DakkapelPlaatsen"
 
 
-def test_bepaal_regels_without_key_raises(tmp_path):
-    c = DsoConnector(base_url="https://x/v2/", operation_path="op",
-                     api_key=None, cache_dir=str(tmp_path))
+def _conn(tmp_path, capture, ret):
+    class _D(DsoConnector):
+        def post_json(self, url, json_body=None, headers=None):
+            capture["url"] = url
+            capture["body"] = json_body
+            capture["headers"] = headers
+            return ret
+
+    return _D(rtr_base_url=RTR, uitvoeren_base_url=UITV, api_key="K", cache_dir=str(tmp_path))
+
+
+def test_bepaal_typeringen(tmp_path):
+    cap = {}
+    c = _conn(tmp_path, cap, [{"functioneleStructuurRef": REF, "regelbeheerobjecten": ["Conclusie"]}])
+    out = c.bepaal_typeringen([REF], (155000.0, 463000.0))
+    assert cap["url"] == f"{RTR}/werkzaamheden/_bepaalRegelbeheerobjectTyperingen"
+    assert cap["body"]["functioneleStructuurRefs"] == [REF]
+    assert cap["body"]["_geo"] == {"intersects": {"type": "Point", "coordinates": [155000.0, 463000.0]}}
+    assert cap["headers"]["x-api-key"] == "K"
+    assert out[0]["regelbeheerobjecten"] == ["Conclusie"]
+
+
+def test_bepaal_indieningsvereisten_sets_crs_and_antwoorden(tmp_path):
+    cap = {}
+    c = _conn(tmp_path, cap, [{"indieningsvereisten": []}])
+    c.bepaal_indieningsvereisten([REF], (121000.0, 487000.0))
+    assert cap["url"] == f"{UITV}/indieningsvereisten/_bepaal"
+    assert cap["body"]["functioneleStructuurRefs"] == [{"functioneleStructuurRef": REF, "antwoorden": []}]
+    assert cap["body"]["_geo"]["intersects"]["coordinates"] == [121000.0, 487000.0]
+    assert cap["headers"]["Content-Crs"] == "EPSG:28992"
+    assert cap["headers"]["x-api-key"] == "K"
+
+
+def test_without_key_raises(tmp_path):
+    c = DsoConnector(rtr_base_url=RTR, uitvoeren_base_url=UITV, api_key=None, cache_dir=str(tmp_path))
     with pytest.raises(ConnectorError):
-        c.bepaal_regels("activiteit X")
+        c.bepaal_typeringen([REF], (1.0, 2.0))
+    with pytest.raises(ConnectorError):
+        c.bepaal_indieningsvereisten([REF], (1.0, 2.0))

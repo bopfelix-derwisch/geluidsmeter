@@ -37,3 +37,18 @@ class BaseConnector:
             raise ConnectorError(f"Bron niet beschikbaar: {url}") from exc
         cp.write_text(json.dumps(data))
         return data
+
+    def post_json(self, url: str, json_body: dict | None = None, headers: dict | None = None):
+        cp = self._cache_path(url, json_body)
+        if cp.exists() and (time.time() - cp.stat().st_mtime) < self.cache_ttl:
+            return json.loads(cp.read_text())
+        try:
+            resp = httpx.post(url, json=json_body, headers=headers, timeout=self.timeout)
+            resp.raise_for_status()
+            data = resp.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            if cp.exists():
+                return json.loads(cp.read_text())
+            raise ConnectorError(f"Bron niet beschikbaar: {url}") from exc
+        cp.write_text(json.dumps(data))
+        return data

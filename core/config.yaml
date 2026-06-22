@@ -84,16 +84,13 @@ leefomgevinglab:
       - production_facility_f   # Bouw
     max_features: 500
   dso:
-    # DSO Registratie Toepasbare Regels (Samengestelde RTR Services v2).
-    # Live geverifieerd 2026-06-22 met DSO_API_KEY tegen de PRE-PRODUCTIE (oefen)
-    # omgeving: ontwikkelaarsportaal-keys werken alleen op service.pre.* (productie
-    # geeft 401). api_key_header 'x-api-key' bevestigd. operation_path bevestigd via
-    # de OpenAPI-spec: de echte operatie is werkzaamheden/_bepaalRegelbeheerobjectTyperingen
-    # (POST). Request: {functioneleStructuurRefs:[...], _geo:{intersects: GeoJSON Point
-    # in RD/EPSG:28992}}. Vrije-tekst 'activiteit' -> werkzaamheid-urn resolutie nog open.
-    base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/samengestelderegistratietoepasbareregelsservices/v2"
-    operation_path: "werkzaamheden/_bepaalRegelbeheerobjectTyperingen"
+    # DSO Toepasbare Regels (pre-productie). Live geverifieerd 2026-06-22 met DSO_API_KEY.
+    # Keys werken alleen op service.pre.* (productie geeft 401). Header x-api-key.
+    # Geometrie in RD/EPSG:28992. Zie spec 2026-06-22-dso-regels-resolver-design.md.
     api_key_header: "x-api-key"
+    zoek_base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/zoekinterface/v2"
+    rtr_base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/samengestelderegistratietoepasbareregelsservices/v2"
+    uitvoeren_base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/toepasbareregelsuitvoerenservices/v3"
   llm:
     base_url: "http://localhost:8080/v1"
     model: "qwen2.5-32b"

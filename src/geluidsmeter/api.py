@@ -25,6 +25,7 @@ from leefomgevinglab.connectors.rev import RevConnector
 from leefomgevinglab.usecases.rev_viewer import service as rev_service
 import os
 from leefomgevinglab.connectors.dso import DsoConnector
+from leefomgevinglab.connectors.dso_zoek import ZoekConnector
 from leefomgevinglab.usecases.vergunningen import service as vergunningen_service
 from functools import partial
 from leefomgevinglab.rag.embed import embed_texts
@@ -368,16 +369,36 @@ def viewer_page():
     return viewer_html.read_text()
 
 
-def _dso_connector() -> DsoConnector:
+def _zoek_connector() -> ZoekConnector:
     ll = _config.get("leefomgevinglab", {})
     dso = ll.get("dso", {})
-    return DsoConnector(
-        base_url=dso.get("base_url", ""),
-        operation_path=dso.get("operation_path", ""),
+    return ZoekConnector(
+        base_url=dso.get("zoek_base_url", ""),
         api_key=os.environ.get("DSO_API_KEY"),
         api_key_header=dso.get("api_key_header", "x-api-key"),
         cache_dir=ll.get("cache_dir", "/tmp/llab_cache"),
     )
+
+
+def _dso_connector() -> DsoConnector:
+    ll = _config.get("leefomgevinglab", {})
+    dso = ll.get("dso", {})
+    return DsoConnector(
+        rtr_base_url=dso.get("rtr_base_url", ""),
+        uitvoeren_base_url=dso.get("uitvoeren_base_url", ""),
+        api_key=os.environ.get("DSO_API_KEY"),
+        api_key_header=dso.get("api_key_header", "x-api-key"),
+        cache_dir=ll.get("cache_dir", "/tmp/llab_cache"),
+    )
+
+
+def _llm_cfg() -> dict:
+    llm = _config.get("leefomgevinglab", {}).get("llm", {})
+    return {
+        "llm_base_url": llm.get("base_url", "http://localhost:8080/v1"),
+        "model": llm.get("model", "qwen2.5-32b"),
+        "timeout_s": llm.get("timeout_s", 60),
+    }
 
 
 class RegelsRequest(BaseModel):
@@ -387,7 +408,11 @@ class RegelsRequest(BaseModel):
 
 @app.post("/api/regels")
 def api_regels(req: RegelsRequest):
-    return vergunningen_service.regels_opzoeken(req.activiteit, req.locatie, _dso_connector())
+    if not req.locatie or "lat" not in req.locatie or "lon" not in req.locatie:
+        raise HTTPException(status_code=422, detail="locatie met lat en lon is verplicht")
+    return vergunningen_service.regels_opzoeken(
+        req.activiteit, req.locatie, _zoek_connector(), _dso_connector(), _llm_cfg()
+    )
 
 
 def _rag_embed_fn():
