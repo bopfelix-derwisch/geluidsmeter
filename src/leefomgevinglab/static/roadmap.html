@@ -101,6 +101,7 @@
           <tr><td>Semantische browser (IMX-Geo + IMEV)</td><td class="st-live">✓ live</td><td><a href="/semantiek">/semantiek</a></td><td>IMX-Geo linked data + IMEV-begrippen</td></tr>
           <tr><td>Datavraag-chatbot (NL→SPARQL op linked data)</td><td class="st-live">✓ live</td><td><a href="/datavraag">/datavraag</a> · <a href="/poc">/poc</a> · <code>/api/datavraag</code></td><td>eigen REV-LD + Kadaster KKG (SPARQL/GeoSPARQL)</td></tr>
           <tr><td>Geluidsmeter publiek + dashboard</td><td class="st-live">✓ live</td><td><a href="/public">/public</a> · <a href="/dashboard">/dashboard</a></td><td>eigen sensor + RIVM/CVGG</td></tr>
+          <tr><td>Regels-opzoeken (DSO toepasbare regels)</td><td class="st-live">✓ live</td><td><code>/api/regels</code></td><td>DSO ZoekInterface + Samengestelde RTR + Uitvoeren (pre-prod) + Qwen-keuze</td></tr>
         </tbody>
       </table>
     </section>
@@ -129,8 +130,8 @@
           </tr>
           <tr>
             <td>DSO Registratie Toepasbare Regels</td>
-            <td class="st-block">⚠ contract geverifieerd</td>
-            <td>Key verkregen; contract <strong>live geverifieerd 2026-06-22</strong>. Bleek af te wijken van de spec-gok: keys werken alleen op <strong>pre-productie</strong> (<code>service.pre.*</code>; productie geeft 401), de echte operatie is <code>POST werkzaamheden/_bepaalRegelbeheerobjectTyperingen</code> (niet <code>_bepaalToepasbareRegels</code>), en het verzoek vraagt <code>functioneleStructuurRefs</code> (werkzaamheid-URI's, geen vrije tekst) + <code>_geo.intersects</code> als GeoJSON-punt in <strong>RD/EPSG:28992</strong>. <code>x-api-key</code>-header bevestigd. Open: vrije-tekst→werkzaamheid-urn resolutie (kruismatrix) + connector-rework.</td>
+            <td class="st-live">✓ live geïntegreerd</td>
+            <td>Volledige keten live (2026-06-22): vrije tekst → werkzaamheid via de <strong>ZoekInterface</strong>-API (gerankt, met trefwoorden) → lokale <strong>Qwen</strong> kiest de beste match → WGS84→RD/EPSG:28992 → <code>werkzaamheden/_bepaalRegelbeheerobjectTyperingen</code> + best-effort <code>indieningsvereisten/_bepaal</code>. Alles op <strong>pre-productie</strong> (<code>service.pre.*</code>), <code>x-api-key</code>. Gelaagd-degraderend conservatief contract; <code>/api/regels</code> live (smoke-test tegen echte DSO groen).</td>
           </tr>
           <tr>
             <td>IPLO (kennisbron, RAG)</td>
@@ -151,8 +152,8 @@
       <table>
         <thead><tr><th>Item</th><th>Status</th><th>Blokkade</th></tr></thead>
         <tbody>
-          <tr><td>Regels-opzoeken (DSO Toepasbare Regels)</td><td class="st-block">◐ contract verified</td><td>Key + contract live bevestigd op pre-prod (2026-06-22). Resteert: connector herschrijven naar het echte POST-protocol (<code>functioneleStructuurRefs</code> + RD-geo) en een vrije-tekst→werkzaamheid-urn resolver. <code>/api/regels</code> degradeert tot dan naar <code>beschikbaar:false</code>.</td></tr>
-          <tr><td>Rules-as-code in de chatbot</td><td class="st-block">⏳ wacht</td><td>Zelfde DSO-key; volgt op de connector-rework. Chatbot leunt nu puur op RAG-over-IPLO.</td></tr>
+          <tr><td>Rules-as-code in de chatbot</td><td class="st-block">⏳ wacht</td><td>De DSO-regels zijn nu live via <code>/api/regels</code>; resteert: ze meewegen in het chatbot-antwoord (rules-as-code naast de RAG-over-IPLO).</td></tr>
+          <tr><td>Diepere regel-inhoud / vragenboom</td><td class="st-block">⏳ wacht</td><td>Indieningsvereisten is best-effort (vaak schaars in oefen); de interactieve vragenboom (<code>antwoorden</code>-flow) + <code>vereist_nadere_vragen</code>-status zijn een vervolgsubsysteem.</td></tr>
         </tbody>
       </table>
     </section>
