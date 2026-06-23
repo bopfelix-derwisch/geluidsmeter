@@ -111,7 +111,7 @@
         const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         const d = await r.json();
         if (!d.beschikbaar && !d.regels) {
-          pending.innerHTML = '<p>Geen antwoord beschikbaar (index of model offline).</p><div class="disc">' + esc(d.vangnet) + '</div>';
+          pending.innerHTML = '<p>Geen antwoord beschikbaar (index of model offline).</p><div class="disc">' + esc(d.disclaimer) + '<br>' + esc(d.vangnet) + '</div>';
           return;
         }
         const bronnen = (d.bronnen || []).map(u => '<a href="' + esc(u) + '" target="_blank">' + esc(u) + "</a>").join("<br>");
