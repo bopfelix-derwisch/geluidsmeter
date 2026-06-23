@@ -20,16 +20,21 @@ def build_prompt(vraag: str, passages: list[dict], regels: dict | None = None) -
         wz = regels["gekozen_werkzaamheid"]
         typeringen = ", ".join(regels.get("typeringen") or []) or "geen"
         dso = (
-            "\n\nVolgens de DSO Toepasbare Regels geldt voor deze activiteit op de gekozen "
-            f"locatie de werkzaamheid '{wz.get('omschrijving')}' met regelsoorten: {typeringen}. "
-            "Dit is de best passende werkzaamheid en hoeft niet exact de vraag te zijn. Trek geen "
-            "stellige conclusie over vergunningplicht; verwijs naar het bevoegd gezag."
+            "\n\nDSO TOEPASBARE REGELS (gebruik dit als kern van je antwoord): voor deze activiteit "
+            f"op de gekozen locatie vond het Omgevingsloket de werkzaamheid '{wz.get('omschrijving')}' "
+            f"met regelsoorten: {typeringen}. Leg concreet uit wat dit betekent — dat er voor deze "
+            "activiteit toepasbare regels gelden (een regelsoort 'Conclusie' duidt op een "
+            "vergunning-/meldingcheck, 'Indieningsvereisten' op aan te leveren gegevens) en dat de "
+            "gebruiker de check kan doen in het Omgevingsloket (omgevingswet.overheid.nl). Dit is de "
+            "best passende werkzaamheid en hoeft niet exact de vraag te zijn."
         )
     return (
-        "Je bent een feitelijke assistent over de Omgevingswet. Beantwoord de vraag "
-        "uitsluitend op basis van onderstaande context. Verzin niets; trek geen juridische "
-        "conclusies en doe geen stellige uitspraak over vergunningplicht. Als de context "
-        "geen antwoord geeft, zeg dat eerlijk. Verwijs naar de gebruikte bron(nen)."
+        "Je bent een feitelijke assistent over de Omgevingswet. Geef een nuttig, concreet en "
+        "indicatief antwoord op basis van de onderstaande bronnen (IPLO-context en, indien aanwezig, "
+        "de DSO toepasbare regels). Verzin niets buiten de bronnen; mis je informatie over een deel, "
+        "zeg dat eerlijk. Geef geen stellig juridisch ja/nee-besluit over vergunningplicht, maar wees "
+        "wel concreet over wat er geldt en welke stap de gebruiker kan zetten. Sluit kort af met de "
+        "notie dat het bevoegd gezag het definitieve besluit neemt. Verwijs naar de gebruikte bron(nen)."
         f"{dso}\n\nContext:\n{context}\n\nVraag: {vraag}"
     )
 

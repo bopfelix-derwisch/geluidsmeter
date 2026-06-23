@@ -41,7 +41,7 @@ def test_build_prompt_bevat_context_en_instructie():
                              [{"text": "Voor kappen geldt soms een vergunning.", "url": "u1"}])
     assert "mag ik een boom kappen?" in p
     assert "Voor kappen geldt soms een vergunning." in p
-    assert "uitsluitend" in p.lower()      # gebruik alleen de context
+    assert "verzin niets buiten de bronnen" in p.lower()   # no-hallucination-instructie
 
 
 def test_beantwoord_happy_contract(monkeypatch):
@@ -82,14 +82,16 @@ def test_beantwoord_llm_down_degradeert(monkeypatch):
 def test_build_prompt_met_regels_voegt_dso_sectie_toe():
     p = chatbot.build_prompt("mag ik een dakkapel plaatsen?",
                              [{"text": "context", "url": "u1"}], _REGELS_OK)
-    assert "DSO Toepasbare Regels" in p
+    assert "toepasbare regels" in p.lower()
+    assert "kern van je antwoord" in p.lower()      # DSO-regels dragen het antwoord
     assert "Dakkapel plaatsen" in p
     assert "Conclusie" in p
 
 
 def test_build_prompt_zonder_regels_geen_dso_sectie():
     p = chatbot.build_prompt("iets", [{"text": "context", "url": "u1"}])
-    assert "DSO Toepasbare Regels" not in p
+    assert "kern van je antwoord" not in p.lower()
+    assert "Dakkapel plaatsen" not in p
 
 
 def test_beantwoord_met_locatie_en_match(monkeypatch):
