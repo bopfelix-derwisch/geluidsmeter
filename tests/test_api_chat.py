@@ -97,6 +97,7 @@ def test_chat_no_index_regels_none(monkeypatch):
     assert r.status_code == 200
     assert r.json()["beschikbaar"] is False
     assert r.json()["regels"] is None
+    assert r.json()["omgevingsplan"] is None
 
 
 def test_chat_locatie_geeft_omgevingsplan_door(monkeypatch):
