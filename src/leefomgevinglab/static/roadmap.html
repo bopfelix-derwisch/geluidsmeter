@@ -97,7 +97,7 @@
         <tbody>
           <tr><td>Leefomgeving-landing</td><td class="st-live">✓ live</td><td><a href="/">/</a></td><td>—</td></tr>
           <tr><td>REV-viewer (externe veiligheid) + AI-duiding</td><td class="st-live">✓ live</td><td><a href="/viewer">/viewer</a> · <code>/api/rev/features</code></td><td>REV via PDOK OGC API Features</td></tr>
-          <tr><td>Vergunningen-chatbot (RAG op IPLO)</td><td class="st-live">✓ live</td><td><a href="/chatbot">/chatbot</a> · <code>/api/chat</code></td><td>IPLO + lokale bge-m3 + Qwen</td></tr>
+          <tr><td>Vergunningen-chatbot (RAG + rules-as-code)</td><td class="st-live">✓ live</td><td><a href="/chatbot">/chatbot</a> · <code>/api/chat</code></td><td>IPLO + bge-m3 + Qwen; met kaartprik weegt hij óók de feitelijke DSO-regels mee</td></tr>
           <tr><td>Semantische browser (IMX-Geo + IMEV)</td><td class="st-live">✓ live</td><td><a href="/semantiek">/semantiek</a></td><td>IMX-Geo linked data + IMEV-begrippen</td></tr>
           <tr><td>Datavraag-chatbot (NL→SPARQL op linked data)</td><td class="st-live">✓ live</td><td><a href="/datavraag">/datavraag</a> · <a href="/poc">/poc</a> · <code>/api/datavraag</code></td><td>eigen REV-LD + Kadaster KKG (SPARQL/GeoSPARQL)</td></tr>
           <tr><td>Geluidsmeter publiek + dashboard</td><td class="st-live">✓ live</td><td><a href="/public">/public</a> · <a href="/dashboard">/dashboard</a></td><td>eigen sensor + RIVM/CVGG</td></tr>
@@ -152,7 +152,7 @@
       <table>
         <thead><tr><th>Item</th><th>Status</th><th>Blokkade</th></tr></thead>
         <tbody>
-          <tr><td>Rules-as-code in de chatbot</td><td class="st-block">⏳ wacht</td><td>De DSO-regels zijn nu live via <code>/api/regels</code>; resteert: ze meewegen in het chatbot-antwoord (rules-as-code naast de RAG-over-IPLO).</td></tr>
+          <tr><td>Rules-as-code in de chatbot</td><td class="st-live">✓ live</td><td>Op <code>/chatbot</code>: prik een locatie → de chatbot haalt de activiteit uit je vraag, zoekt de DSO toepasbare-regels op die plek op, en toont ze als apart blok naast het RAG-antwoord.</td></tr>
           <tr><td>Diepere regel-inhoud / vragenboom</td><td class="st-block">⏳ wacht</td><td>Indieningsvereisten is best-effort (vaak schaars in oefen); de interactieve vragenboom (<code>antwoorden</code>-flow) + <code>vereist_nadere_vragen</code>-status zijn een vervolgsubsysteem.</td></tr>
         </tbody>
       </table>
