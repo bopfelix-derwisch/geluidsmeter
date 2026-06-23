@@ -19,15 +19,20 @@ niet-juridisch, net als de andere lagen.
 
 **Ozon Omgevingsdocument Presenteren v8** — host `service.pre.omgevingswet.overheid.nl`,
 pad `/publiek/omgevingsdocumenten/api/presenteren/v8`. Header `x-api-key` (key vereist; "geen
-indien-rol" ≠ geen key). HAL-respons (`Accept: application/hal+json`). Geometrie in RD/EPSG:28992
-via header `Content-Crs`. Pre-prod-catalogus: 3012 regelingen.
+indien-rol" ≠ geen key). HAL-respons (`Accept: application/hal+json`). Geometrie in RD via header
+**`Content-Crs: http://www.opengis.net/def/crs/EPSG/0/28992`** (de OGC-URI-vorm; `EPSG:28992` geeft
+400 — anders dan de toepasbare-regels-API!). Pre-prod-catalogus: 3012 regelingen.
 
 Relevante endpoints (uit de OpenAPI-spec, `/publish/pages/166112/omgevingsdocumenten-presenteren-v8.json`):
-- `POST /regelingen/_zoek` — body `RegelingZoekobject` = `{typeBevoegdGezag?, bevoegdGezag?, geometrie}`
-  → welke regelingen/omgevingsplannen gelden op het punt. `_embedded.regelingen[]`.
-- `POST /regelingen/{uriIdentificatie}/regeltekstannotaties/_zoek` — body `GeoZoekRequestBody` =
-  `{"geometrie": {"type": "Point", "coordinates": [x, y]}}` (RD; voorbeeld `[139784, 442870]`)
-  → de regelteksten die op dat punt gelden binnen die regeling.
+- `POST /regelingen/_zoek` — body `{"geometrie": {"type": "Point", "coordinates": [x, y]}}` (RD;
+  voorbeeld `[139784, 442870]`) → `_embedded.regelingen[]`. **Live geverifieerd:** één punt geeft
+  ~20 regelingen over álle bestuurslagen. Velden per regeling: `identificatie` (`/akn/nl/act/...`),
+  `officieleTitel`, `opschrift`, `citeerTitel`, `type` (`{code, waarde}`, bv. `"AMvB"`,
+  `"Omgevingsplan"`, `"Omgevingsverordening"`, `"Waterschapsverordening"`, `"Programma"`,
+  `"Omgevingsvisie"`), `aangeleverdDoorEen` (`{naam, bestuurslaag, code}` = bevoegd gezag).
+- `POST /regelingen/{uriIdentificatie}/regeltekstannotaties/_zoek` — zelfde geo-body. `{uriIdentificatie}`
+  = de `identificatie` met `/` → `_` (bv. `_akn_nl_act_mnre1034_2020_regOW01`). **Live bevinding:**
+  vaak leeg (de eerste regeling gaf 0); daarom alleen best-effort voor de top-1 regeling, niet per regeling.
 
 ## Architectuur & data-flow
 
@@ -47,18 +52,23 @@ POST /api/chat {vraag, locatie?}
 ### Componenten (spiegelt de toepasbare-regels-aanpak)
 
 - `src/leefomgevinglab/connectors/ozon.py` — **`OzonConnector(BaseConnector)`**
-  - `regelingen_op_punt(geo_rd: tuple[float,float], max_n: int = 3) -> list[dict]`
-    — `POST {base}/regelingen/_zoek` body `{"geometrie": Point}`, header `Content-Crs: EPSG:28992` +
-    `Accept: application/hal+json`. Parseert `_embedded.regelingen[]` → top-N
-    `{naam, bevoegd_gezag, uri}`.
+  - `regelingen_op_punt(geo_rd: tuple[float,float]) -> list[dict]`
+    — `POST {base}/regelingen/_zoek` body `{"geometrie": Point}`, headers `Content-Crs` (OGC-URI),
+    `Accept: application/hal+json`, `x-api-key`. Parseert `_embedded.regelingen[]` → lijst
+    `{titel, type, bevoegd_gezag, uri}` (titel = `opschrift`/`officieleTitel`; type = `type.waarde`;
+    bevoegd_gezag = `aangeleverdDoorEen.naam`; uri = `identificatie` met `/`→`_`). Geen filtering/cap
+    in de connector — dat doet de service.
   - `regelteksten_op_punt(regeling_uri: str, geo_rd, max_m: int = 5) -> list[str]`
     — `POST {base}/regelingen/{uri}/regeltekstannotaties/_zoek` zelfde geo-body → top-M
-    regeltekst-opschriften (titels), niet de volledige body.
+    regeltekst-opschriften (titels), niet de volledige body. Lege respons → `[]`.
   - Raise `ConnectorError` zonder key.
-- `src/leefomgevinglab/usecases/vergunningen/omgevingsplan.py` — **`omgevingsplan_op_locatie(locatie: dict, ozon_connector) -> dict | None`**
-  - `resolver.wgs84_naar_rd(lat, lon)` → RD; `regelingen_op_punt`; per regeling `regelteksten_op_punt`
-    (begrensd). Geeft het blok of `None` (geen regelingen). `ConnectorError` propageert (de chatbot
-    vangt 'm — onafhankelijke degradatie).
+- `src/leefomgevinglab/usecases/vergunningen/omgevingsplan.py` — **`omgevingsplan_op_locatie(locatie: dict, ozon_connector, max_regelingen=3, max_regelteksten=5) -> dict | None`**
+  - `resolver.wgs84_naar_rd(lat, lon)` → RD; `regelingen_op_punt`; **filter** op relevante types
+    (`Omgevingsplan`, `Omgevingsverordening`, `Waterschapsverordening`) en cap op `max_regelingen`.
+    Geen relevante regelingen → `None`. Voor de **top-1** relevante regeling (prioriteit Omgevingsplan
+    > Omgevingsverordening > Waterschapsverordening) best-effort `regelteksten_op_punt` (cap
+    `max_regelteksten`); leeg/fout → gewoon zonder regelteksten. `ConnectorError` uit de connector
+    propageert (de chatbot vangt 'm — onafhankelijke degradatie).
 - `src/geluidsmeter/api.py` — `/api/chat` bouwt een `omgevingsplan_fn`-closure over `_ozon_connector()`
   + `omgevingsplan.omgevingsplan_op_locatie`, en geeft die door aan `beantwoord`.
 - `src/leefomgevinglab/usecases/vergunningen/chatbot.py` — `beantwoord` krijgt `omgevingsplan_fn=None`;
@@ -75,12 +85,16 @@ Additief; bestaande velden (incl. `regels`) ongewijzigd:
 {
   "vraag": "...", "antwoord": "...", "bronnen": [...],
   "regels": { ... },                          // toepasbare regels (bestaand)
-  "omgevingsplan": {                          // NIEUW — null als geen locatie / niets / bron down
+  "omgevingsplan": {                          // NIEUW — null als geen locatie / geen relevante regeling / bron down
     "regelingen": [
-      {"naam": "Omgevingsplan gemeente Den Haag", "bevoegd_gezag": "gemeente",
-       "regelteksten": ["Bouwregels woongebied", "Aan-huis-verbonden beroep"]}
+      {"titel": "Omgevingsverordening Utrecht", "type": "Omgevingsverordening",
+       "bevoegd_gezag": "provincie Utrecht"},
+      {"titel": "Waterschapsverordening De Stichtse Rijnlanden", "type": "Waterschapsverordening",
+       "bevoegd_gezag": "Hoogheemraadschap De Stichtse Rijnlanden"}
     ],
-    "locatie_rd": [80474.8, 455194.3],
+    "top_regeling": "Omgevingsverordening Utrecht",      // de hoogst-geprioriteerde
+    "regelteksten": ["Bouwregels woongebied"],           // best-effort voor top_regeling; [] indien geen
+    "locatie_rd": [139784.0, 442870.0],
     "aantal_beperkt_tot": 3,
     "bron": "DSO Presenteren (Ozon)"
   },
