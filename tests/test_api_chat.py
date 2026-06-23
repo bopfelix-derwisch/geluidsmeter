@@ -41,3 +41,92 @@ def test_chat_no_index_degradeert(monkeypatch):
     assert r.json()["beschikbaar"] is False
     assert r.json()["disclaimer"]
     assert "bevoegd gezag" in r.json()["vangnet"]
+
+
+def test_chat_met_locatie_geeft_regels_door(monkeypatch):
+    client = _client(monkeypatch)
+
+    class _Store:
+        def search(self, qv, k): return [{"text": "t", "url": "https://iplo.nl/a", "score": 0.9}]
+
+    monkeypatch.setattr(api, "_rag_store", lambda: _Store())
+    monkeypatch.setattr(api, "_rag_embed_fn", lambda: (lambda texts: [[1.0, 0.0] for _ in texts]))
+
+    captured = {}
+
+    def fake_beantwoord(vraag, store, embed_fn, **kw):
+        captured.update(kw)
+        return {"vraag": vraag, "antwoord": "ok", "bronnen": [], "regels": {"gekozen_werkzaamheid": {"urn": "X"}},
+                "onzekerheid": True, "disclaimer": "d", "vangnet": "bevoegd gezag", "beschikbaar": True}
+
+    monkeypatch.setattr(api.chatbot, "beantwoord", fake_beantwoord)
+    r = client.post("/api/chat", json={"vraag": "mag ik een dakkapel?", "locatie": {"lat": 52.0, "lon": 4.3}})
+    assert r.status_code == 200
+    assert captured["locatie"] == {"lat": 52.0, "lon": 4.3}
+    assert callable(captured["regels_fn"])
+    assert r.json()["regels"] == {"gekozen_werkzaamheid": {"urn": "X"}}
+
+
+def test_chat_zonder_locatie_locatie_none(monkeypatch):
+    client = _client(monkeypatch)
+
+    class _Store:
+        def search(self, qv, k): return [{"text": "t", "url": "u", "score": 0.9}]
+
+    monkeypatch.setattr(api, "_rag_store", lambda: _Store())
+    monkeypatch.setattr(api, "_rag_embed_fn", lambda: (lambda texts: [[1.0, 0.0] for _ in texts]))
+
+    captured = {}
+
+    def fake_beantwoord(vraag, store, embed_fn, **kw):
+        captured.update(kw)
+        return {"vraag": vraag, "antwoord": "ok", "bronnen": [], "regels": None,
+                "onzekerheid": True, "disclaimer": "d", "vangnet": "bevoegd gezag", "beschikbaar": True}
+
+    monkeypatch.setattr(api.chatbot, "beantwoord", fake_beantwoord)
+    r = client.post("/api/chat", json={"vraag": "iets"})
+    assert r.status_code == 200
+    assert captured["locatie"] is None
+    assert r.json()["regels"] is None
+
+
+def test_chat_no_index_regels_none(monkeypatch):
+    client = _client(monkeypatch)
+    monkeypatch.setattr(api, "_rag_store", lambda: None)
+    r = client.post("/api/chat", json={"vraag": "iets", "locatie": {"lat": 52.0, "lon": 4.3}})
+    assert r.status_code == 200
+    assert r.json()["beschikbaar"] is False
+    assert r.json()["regels"] is None
+
+
+def test_chat_locatie_extraheert_activiteit_voor_zoek(monkeypatch):
+    client = _client(monkeypatch)
+
+    class _Store:
+        def search(self, qv, k): return [{"text": "t", "url": "u", "score": 0.9}]
+
+    monkeypatch.setattr(api, "_rag_store", lambda: _Store())
+    monkeypatch.setattr(api, "_rag_embed_fn", lambda: (lambda texts: [[1.0, 0.0] for _ in texts]))
+    monkeypatch.setattr(api.vergunningen_resolver, "extract_activiteit", lambda *a, **k: "dakkapel plaatsen")
+
+    captured = {}
+
+    def fake_regels(activiteit, locatie, zc, dc, cfg):
+        captured["activiteit"] = activiteit
+        return {"beschikbaar": True,
+                "gekozen_werkzaamheid": {"urn": "X", "omschrijving": "Dakkapel plaatsen", "zekerheid_match": "midden"},
+                "typeringen": ["Conclusie"], "alternatieven": [], "indieningsvereisten_status": "x", "bron": "b"}
+
+    monkeypatch.setattr(api.vergunningen_service, "regels_opzoeken", fake_regels)
+
+    # Laat de echte regels_fn-closure draaien via een beantwoord-mock die hem aanroept:
+    def fake_beantwoord(vraag, store, embed_fn, **kw):
+        r = kw["regels_fn"](vraag, kw["locatie"])
+        return {"vraag": vraag, "antwoord": "ok", "bronnen": [], "regels": r, "onzekerheid": True,
+                "disclaimer": "d", "vangnet": "bevoegd gezag", "beschikbaar": True}
+
+    monkeypatch.setattr(api.chatbot, "beantwoord", fake_beantwoord)
+    r = client.post("/api/chat", json={"vraag": "mag ik een dakkapel plaatsen?", "locatie": {"lat": 52.0, "lon": 4.3}})
+    assert r.status_code == 200
+    assert captured["activiteit"] == "dakkapel plaatsen"          # extractie toegepast vóór zoek
+    assert r.json()["regels"]["gekozen_werkzaamheid"]["urn"] == "X"

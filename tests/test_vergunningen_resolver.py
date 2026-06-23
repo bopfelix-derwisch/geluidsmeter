@@ -49,3 +49,30 @@ def test_kies_valt_terug_bij_llm_fout(monkeypatch):
     out = resolver.kies_werkzaamheid("x", [K1, K2], "http://llm/v1", "qwen")
     assert out["gekozen"]["urn"] == "DakkapelPlaatsen"   # hoogst gerankt
     assert out["zekerheid_match"] == "laag"
+
+
+def test_extract_activiteit_haalt_kale_woordgroep(monkeypatch):
+    def fake_post(url, json=None, timeout=None):
+        return httpx.Response(200, json={"choices": [{"message": {"content": "dakkapel plaatsen"}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    out = resolver.extract_activiteit("mag ik een dakkapel plaatsen in mijn tuin?", "http://llm/v1", "qwen")
+    assert out == "dakkapel plaatsen"
+
+
+def test_extract_activiteit_valt_terug_op_vraag_bij_fout(monkeypatch):
+    def boom(*a, **k):
+        raise httpx.ConnectError("down")
+
+    monkeypatch.setattr(httpx, "post", boom)
+    vraag = "mag ik een dakkapel plaatsen?"
+    assert resolver.extract_activiteit(vraag, "http://llm/v1", "qwen") == vraag
+
+
+def test_extract_activiteit_lege_output_valt_terug(monkeypatch):
+    def fake_post(url, json=None, timeout=None):
+        return httpx.Response(200, json={"choices": [{"message": {"content": "   "}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    vraag = "iets vaags"
+    assert resolver.extract_activiteit(vraag, "http://llm/v1", "qwen") == vraag

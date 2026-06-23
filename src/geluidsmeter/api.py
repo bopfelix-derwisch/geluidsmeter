@@ -27,6 +27,7 @@ import os
 from leefomgevinglab.connectors.dso import DsoConnector
 from leefomgevinglab.connectors.dso_zoek import ZoekConnector
 from leefomgevinglab.usecases.vergunningen import service as vergunningen_service
+from leefomgevinglab.usecases.vergunningen import resolver as vergunningen_resolver
 from functools import partial
 from leefomgevinglab.rag.embed import embed_texts
 from leefomgevinglab.rag.store import VectorStore
@@ -431,6 +432,7 @@ def _rag_store():
 
 class ChatRequest(BaseModel):
     vraag: str
+    locatie: dict | None = None
 
 
 @app.post("/api/chat")
@@ -438,16 +440,27 @@ def api_chat(req: ChatRequest):
     store = _rag_store()
     if store is None:
         return {
-            "vraag": req.vraag, "antwoord": None, "bronnen": [], "onzekerheid": True,
+            "vraag": req.vraag, "antwoord": None, "bronnen": [], "regels": None, "onzekerheid": True,
             "disclaimer": chatbot.DISCLAIMER, "vangnet": chatbot.VANGNET, "beschikbaar": False,
         }
     rag = _config.get("leefomgevinglab", {}).get("rag", {})
     llm = _config.get("leefomgevinglab", {}).get("llm", {})
+
+    def regels_fn(vraag: str, locatie: dict) -> dict:
+        activiteit = vergunningen_resolver.extract_activiteit(
+            vraag, llm.get("base_url", "http://localhost:8080/v1"),
+            llm.get("model", "qwen2.5-32b"), llm.get("timeout_s", 60),
+        )
+        return vergunningen_service.regels_opzoeken(
+            activiteit, locatie, _zoek_connector(), _dso_connector(), _llm_cfg()
+        )
+
     return chatbot.beantwoord(
         req.vraag, store, _rag_embed_fn(),
         llm_base_url=llm.get("base_url", "http://localhost:8080/v1"),
         model=llm.get("model", "qwen2.5-32b"),
         top_k=rag.get("top_k", 4), timeout_s=llm.get("timeout_s", 60),
+        locatie=req.locatie, regels_fn=regels_fn,
     )
 
 

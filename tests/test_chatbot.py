@@ -21,6 +21,21 @@ class _Store:
 def _embed_ok(texts): return [[1.0, 0.0] for _ in texts]
 
 
+_REGELS_OK = {
+    "beschikbaar": True,
+    "gekozen_werkzaamheid": {"urn": "DakkapelPlaatsen", "omschrijving": "Dakkapel plaatsen",
+                             "match_onderbouwing": "Enige kandidaat", "zekerheid_match": "midden"},
+    "alternatieven": [],
+    "typeringen": ["Conclusie", "Indieningsvereisten"],
+    "indieningsvereisten": None,
+    "indieningsvereisten_status": "niet_beschikbaar_op_locatie",
+    "locatie_rd": [80474.8, 455194.3],
+    "bron": "DSO Toepasbare Regels (Zoek + RTR + Uitvoeren)",
+}
+_REGELS_GEEN_MATCH = {"beschikbaar": False, "gekozen_werkzaamheid": None, "alternatieven": []}
+LOC = {"lat": 52.08, "lon": 4.30}
+
+
 def test_build_prompt_bevat_context_en_instructie():
     p = chatbot.build_prompt("mag ik een boom kappen?",
                              [{"text": "Voor kappen geldt soms een vergunning.", "url": "u1"}])
@@ -62,3 +77,98 @@ def test_beantwoord_llm_down_degradeert(monkeypatch):
                              llm_base_url="http://localhost:8080/v1", model="qwen2.5-32b")
     assert out["beschikbaar"] is False
     assert "bevoegd gezag" in out["vangnet"]
+
+
+def test_build_prompt_met_regels_voegt_dso_sectie_toe():
+    p = chatbot.build_prompt("mag ik een dakkapel plaatsen?",
+                             [{"text": "context", "url": "u1"}], _REGELS_OK)
+    assert "DSO Toepasbare Regels" in p
+    assert "Dakkapel plaatsen" in p
+    assert "Conclusie" in p
+
+
+def test_build_prompt_zonder_regels_geen_dso_sectie():
+    p = chatbot.build_prompt("iets", [{"text": "context", "url": "u1"}])
+    assert "DSO Toepasbare Regels" not in p
+
+
+def test_beantwoord_met_locatie_en_match(monkeypatch):
+    store = _Store([{"text": "Voor een dakkapel geldt soms een melding.", "url": "https://iplo.nl/a", "score": 0.9}])
+    captured = {}
+
+    def fake_post(url, json=None, timeout=None):
+        captured["prompt"] = json["messages"][0]["content"]
+        return _Resp({"choices": [{"message": {"content": "Mogelijk een melding."}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    out = chatbot.beantwoord("mag ik een dakkapel plaatsen?", store, _embed_ok,
+                             llm_base_url="http://localhost:8080/v1", model="qwen2.5-32b",
+                             locatie=LOC, regels_fn=lambda v, l: _REGELS_OK)
+    assert out["beschikbaar"] is True
+    assert out["antwoord"] == "Mogelijk een melding."
+    assert out["regels"] == _REGELS_OK
+    assert "Dakkapel plaatsen" in captured["prompt"]   # Qwen kreeg de DSO-context mee
+
+
+def test_beantwoord_zonder_locatie_geen_regels(monkeypatch):
+    store = _Store([{"text": "x", "url": "u", "score": 0.5}])
+    called = {"n": 0}
+
+    def regels_fn(v, l):
+        called["n"] += 1
+        return _REGELS_OK
+
+    def fake_post(url, json=None, timeout=None):
+        return _Resp({"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    out = chatbot.beantwoord("iets", store, _embed_ok,
+                             llm_base_url="http://x/v1", model="qwen", regels_fn=regels_fn)
+    assert out["regels"] is None
+    assert called["n"] == 0           # zonder locatie niet aangeroepen
+    assert out["beschikbaar"] is True
+
+
+def test_beantwoord_geen_werkzaamheid_match_geen_regels(monkeypatch):
+    store = _Store([{"text": "x", "url": "u", "score": 0.5}])
+
+    def fake_post(url, json=None, timeout=None):
+        return _Resp({"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    out = chatbot.beantwoord("iets vaags", store, _embed_ok,
+                             llm_base_url="http://x/v1", model="qwen",
+                             locatie=LOC, regels_fn=lambda v, l: _REGELS_GEEN_MATCH)
+    assert out["regels"] is None
+    assert out["beschikbaar"] is True
+
+
+def test_beantwoord_regels_bron_down_rag_blijft(monkeypatch):
+    store = _Store([{"text": "x", "url": "u", "score": 0.5}])
+
+    def boom(v, l):
+        raise ConnectorError("regels down")
+
+    def fake_post(url, json=None, timeout=None):
+        return _Resp({"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    out = chatbot.beantwoord("iets", store, _embed_ok,
+                             llm_base_url="http://x/v1", model="qwen",
+                             locatie=LOC, regels_fn=boom)
+    assert out["regels"] is None            # regels-laag faalde
+    assert out["beschikbaar"] is True       # RAG-antwoord blijft
+    assert out["antwoord"] == "ok"
+
+
+def test_beantwoord_rag_down_regels_blijft(monkeypatch):
+    def embed_boom(texts):
+        raise ConnectorError("embed down")
+
+    store = _Store([])
+    out = chatbot.beantwoord("mag ik een dakkapel plaatsen?", store, embed_boom,
+                             llm_base_url="http://x/v1", model="qwen",
+                             locatie=LOC, regels_fn=lambda v, l: _REGELS_OK)
+    assert out["beschikbaar"] is False      # RAG faalde
+    assert out["antwoord"] is None
+    assert out["regels"] == _REGELS_OK      # regels overleven onafhankelijk
