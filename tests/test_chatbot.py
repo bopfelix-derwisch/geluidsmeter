@@ -174,3 +174,73 @@ def test_beantwoord_rag_down_regels_blijft(monkeypatch):
     assert out["beschikbaar"] is False      # RAG faalde
     assert out["antwoord"] is None
     assert out["regels"] == _REGELS_OK      # regels overleven onafhankelijk
+
+
+_OP_OK = {
+    "regelingen": [{"titel": "Omgevingsplan Z", "type": "Omgevingsplan", "bevoegd_gezag": "gem Z"}],
+    "top_regeling": "Omgevingsplan Z", "regelteksten": ["Bouwregels"],
+    "locatie_rd": [139784.0, 442870.0], "aantal_beperkt_tot": 3, "bron": "DSO Presenteren (Ozon)",
+}
+
+
+def test_build_prompt_met_omgevingsplan_voegt_sectie_toe():
+    p = chatbot.build_prompt("mag ik bouwen?", [{"text": "c", "url": "u1"}], None, _OP_OK)
+    assert "omgevingsdocumenten" in p.lower() or "geldt" in p.lower()
+    assert "Omgevingsplan Z" in p
+
+
+def test_build_prompt_zonder_omgevingsplan_geen_sectie():
+    p = chatbot.build_prompt("iets", [{"text": "c", "url": "u1"}])
+    assert "Omgevingsplan Z" not in p
+
+
+def test_beantwoord_met_omgevingsplan(monkeypatch):
+    store = _Store([{"text": "x", "url": "https://iplo.nl/a", "score": 0.9}])
+    captured = {}
+
+    def fake_post(url, json=None, timeout=None):
+        captured["prompt"] = json["messages"][0]["content"]
+        return _Resp({"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    out = chatbot.beantwoord("mag ik bouwen?", store, _embed_ok,
+                             llm_base_url="http://x/v1", model="qwen",
+                             locatie=LOC, omgevingsplan_fn=lambda loc: _OP_OK)
+    assert out["omgevingsplan"] == _OP_OK
+    assert "Omgevingsplan Z" in captured["prompt"]
+    assert out["beschikbaar"] is True
+
+
+def test_beantwoord_zonder_locatie_geen_omgevingsplan(monkeypatch):
+    store = _Store([{"text": "x", "url": "u", "score": 0.5}])
+    called = {"n": 0}
+
+    def op_fn(loc):
+        called["n"] += 1
+        return _OP_OK
+
+    def fake_post(url, json=None, timeout=None):
+        return _Resp({"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    out = chatbot.beantwoord("iets", store, _embed_ok, llm_base_url="http://x/v1", model="qwen",
+                             omgevingsplan_fn=op_fn)
+    assert out["omgevingsplan"] is None
+    assert called["n"] == 0
+
+
+def test_beantwoord_ozon_down_rag_blijft(monkeypatch):
+    store = _Store([{"text": "x", "url": "u", "score": 0.5}])
+
+    def op_boom(loc):
+        raise ConnectorError("ozon down")
+
+    def fake_post(url, json=None, timeout=None):
+        return _Resp({"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    out = chatbot.beantwoord("iets", store, _embed_ok, llm_base_url="http://x/v1", model="qwen",
+                             locatie=LOC, omgevingsplan_fn=op_boom)
+    assert out["omgevingsplan"] is None
+    assert out["beschikbaar"] is True
+    assert out["antwoord"] == "ok"
