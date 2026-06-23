@@ -59,6 +59,13 @@ def test_regelteksten_leeg(tmp_path):
     assert c.regelteksten_op_punt("u", RD) == []
 
 
+def test_regelteksten_slaat_titelloze_items_over_dan_cap(tmp_path):
+    payload = {"_embedded": {"regeltekstannotaties": [
+        {"geen_titel": 1}, {"opschrift": "A"}, {"opschrift": "B"}, {"opschrift": "C"}]}}
+    c = _conn(tmp_path, {}, payload)
+    assert c.regelteksten_op_punt("u", RD, max_m=2) == ["A", "B"]
+
+
 def test_zonder_key_raises(tmp_path):
     c = OzonConnector(base_url=B, api_key=None, cache_dir=str(tmp_path))
     with pytest.raises(ConnectorError):

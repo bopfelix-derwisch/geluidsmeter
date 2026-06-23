@@ -50,8 +50,8 @@ class OzonConnector(BaseConnector):
         emb = data.get("_embedded") or {}
         items = next(iter(emb.values()), []) if emb else []
         out = []
-        for it in items[:max_m]:
+        for it in items:
             titel = it.get("opschrift") or it.get("titel") or (it.get("regeltekst") or {}).get("opschrift")
             if titel:
                 out.append(titel)
-        return out
+        return out[:max_m]
