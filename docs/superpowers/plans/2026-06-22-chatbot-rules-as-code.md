@@ -568,9 +568,186 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ---
 
+### Task 4: Activiteit-extractie — vraag → kale werkzaamheid-term
+
+**Reden (live bevonden 2026-06-23):** de ZoekInterface matcht niet op een hele vraag
+("mag ik een dakkapel plaatsen?" → 0 kandidaten) maar wél op de kale activiteit
+("dakkapel plaatsen" → `DakkapelPlaatsen`). Zonder extractie geeft de chatbot daarom op echte
+vragen géén regels-blok. Deze taak haalt de kale activiteit uit de vraag vóór de ZoekInterface.
+
+**Files:**
+- Modify: `src/leefomgevinglab/usecases/vergunningen/resolver.py` (+ `extract_activiteit`)
+- Modify: `src/geluidsmeter/api.py` (regels_fn-closure gebruikt de extractie)
+- Test: `tests/test_vergunningen_resolver.py` (+ extractie-tests), `tests/test_api_chat.py` (+ wiring-test)
+
+**Interfaces:**
+- Produces: `extract_activiteit(vraag: str, llm_base_url: str, model: str, timeout_s: float = 60.0) -> str`
+  — Qwen haalt de kale activiteit-woordgroep uit de vraag; bij élke fout val terug op de ruwe `vraag`
+  (nooit slechter dan nu).
+- Consumes (api.py): de extractie in de `regels_fn`-closure; `vergunningen_resolver.extract_activiteit`.
+
+- [ ] **Step 1: Schrijf de falende resolver-tests**
+
+Voeg toe aan `tests/test_vergunningen_resolver.py` (imports `httpx`, `resolver` zijn al aanwezig):
+
+```python
+def test_extract_activiteit_haalt_kale_woordgroep(monkeypatch):
+    def fake_post(url, json=None, timeout=None):
+        return httpx.Response(200, json={"choices": [{"message": {"content": "dakkapel plaatsen"}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    out = resolver.extract_activiteit("mag ik een dakkapel plaatsen in mijn tuin?", "http://llm/v1", "qwen")
+    assert out == "dakkapel plaatsen"
+
+
+def test_extract_activiteit_valt_terug_op_vraag_bij_fout(monkeypatch):
+    def boom(*a, **k):
+        raise httpx.ConnectError("down")
+
+    monkeypatch.setattr(httpx, "post", boom)
+    vraag = "mag ik een dakkapel plaatsen?"
+    assert resolver.extract_activiteit(vraag, "http://llm/v1", "qwen") == vraag
+
+
+def test_extract_activiteit_lege_output_valt_terug(monkeypatch):
+    def fake_post(url, json=None, timeout=None):
+        return httpx.Response(200, json={"choices": [{"message": {"content": "   "}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    vraag = "iets vaags"
+    assert resolver.extract_activiteit(vraag, "http://llm/v1", "qwen") == vraag
+```
+
+- [ ] **Step 2: Run om te zien dat ze falen**
+
+Run: `PYTHONPATH=src python -m pytest tests/test_vergunningen_resolver.py -q`
+Expected: FAIL (`AttributeError: module ... has no attribute 'extract_activiteit'`).
+
+- [ ] **Step 3: Implementeer `extract_activiteit` in `resolver.py`**
+
+Voeg toe (onder de bestaande imports/`kies_werkzaamheid`):
+
+```python
+def extract_activiteit(vraag: str, llm_base_url: str, model: str, timeout_s: float = 60.0) -> str:
+    prompt = (
+        "Haal uit de volgende vraag de kale activiteit/werkzaamheid als korte zelfstandige "
+        "woordgroep, zonder vraagwoorden, locatie of leestekens. Geef UITSLUITEND die woordgroep "
+        "terug, niets anders.\n\n"
+        f"Vraag: {vraag}\nActiviteit:"
+    )
+    try:
+        resp = httpx.post(
+            f"{llm_base_url.rstrip('/')}/chat/completions",
+            json={"model": model, "messages": [{"role": "user", "content": prompt}],
+                  "temperature": 0.0},
+            timeout=timeout_s,
+        )
+        if resp.status_code >= 400:
+            raise httpx.HTTPError(f"HTTP {resp.status_code}")
+        tekst = resp.json()["choices"][0]["message"]["content"].strip()
+        return tekst or vraag
+    except (httpx.HTTPError, KeyError, ValueError, IndexError, TypeError):
+        return vraag
+```
+
+- [ ] **Step 4: Run om te zien dat ze slagen**
+
+Run: `PYTHONPATH=src python -m pytest tests/test_vergunningen_resolver.py -q`
+Expected: PASS (bestaande + 3 nieuwe).
+
+- [ ] **Step 5: Schrijf de falende route-wiring-test**
+
+Voeg toe aan `tests/test_api_chat.py`:
+
+```python
+def test_chat_locatie_extraheert_activiteit_voor_zoek(monkeypatch):
+    client = _client(monkeypatch)
+
+    class _Store:
+        def search(self, qv, k): return [{"text": "t", "url": "u", "score": 0.9}]
+
+    monkeypatch.setattr(api, "_rag_store", lambda: _Store())
+    monkeypatch.setattr(api, "_rag_embed_fn", lambda: (lambda texts: [[1.0, 0.0] for _ in texts]))
+    monkeypatch.setattr(api.vergunningen_resolver, "extract_activiteit", lambda *a, **k: "dakkapel plaatsen")
+
+    captured = {}
+
+    def fake_regels(activiteit, locatie, zc, dc, cfg):
+        captured["activiteit"] = activiteit
+        return {"beschikbaar": True,
+                "gekozen_werkzaamheid": {"urn": "X", "omschrijving": "Dakkapel plaatsen", "zekerheid_match": "midden"},
+                "typeringen": ["Conclusie"], "alternatieven": [], "indieningsvereisten_status": "x", "bron": "b"}
+
+    monkeypatch.setattr(api.vergunningen_service, "regels_opzoeken", fake_regels)
+
+    # Laat de echte regels_fn-closure draaien via een beantwoord-mock die hem aanroept:
+    def fake_beantwoord(vraag, store, embed_fn, **kw):
+        r = kw["regels_fn"](vraag, kw["locatie"])
+        return {"vraag": vraag, "antwoord": "ok", "bronnen": [], "regels": r, "onzekerheid": True,
+                "disclaimer": "d", "vangnet": "bevoegd gezag", "beschikbaar": True}
+
+    monkeypatch.setattr(api.chatbot, "beantwoord", fake_beantwoord)
+    r = client.post("/api/chat", json={"vraag": "mag ik een dakkapel plaatsen?", "locatie": {"lat": 52.0, "lon": 4.3}})
+    assert r.status_code == 200
+    assert captured["activiteit"] == "dakkapel plaatsen"          # extractie toegepast vóór zoek
+    assert r.json()["regels"]["gekozen_werkzaamheid"]["urn"] == "X"
+```
+
+- [ ] **Step 6: Run om te zien dat hij faalt**
+
+Run: `PYTHONPATH=src python -m pytest tests/test_api_chat.py -q`
+Expected: FAIL (`AttributeError: module 'geluidsmeter.api' has no attribute 'vergunningen_resolver'`, of `captured` leeg omdat de extractie nog niet bedraad is).
+
+- [ ] **Step 7: Bedraad de extractie in `src/geluidsmeter/api.py`**
+
+Voeg bij de imports toe (naast de bestaande `from leefomgevinglab.usecases.vergunningen import service as vergunningen_service`):
+
+```python
+from leefomgevinglab.usecases.vergunningen import resolver as vergunningen_resolver
+```
+
+Vervang in `api_chat` de `regels_fn`-closure door:
+
+```python
+    def regels_fn(vraag: str, locatie: dict) -> dict:
+        activiteit = vergunningen_resolver.extract_activiteit(
+            vraag, llm.get("base_url", "http://localhost:8080/v1"),
+            llm.get("model", "qwen2.5-32b"), llm.get("timeout_s", 60),
+        )
+        return vergunningen_service.regels_opzoeken(
+            activiteit, locatie, _zoek_connector(), _dso_connector(), _llm_cfg()
+        )
+```
+
+- [ ] **Step 8: Run om te zien dat hij slaagt + volledige suite**
+
+Run: `PYTHONPATH=src python -m pytest tests/test_api_chat.py tests/test_vergunningen_resolver.py -q`
+Expected: PASS.
+Run: `PYTHONPATH=src python -m pytest -q`
+Expected: PASS — alles groen.
+
+- [ ] **Step 9: Herstart + live-verificatie**
+
+```bash
+sudo systemctl restart geluidsmeter-api
+curl -sS -m40 -X POST http://localhost:8792/api/chat -H "Content-Type: application/json" \
+  -d '{"vraag":"mag ik een dakkapel plaatsen?","locatie":{"lat":52.08,"lon":4.30}}'
+```
+Verwacht: `regels` is nu **gevuld** (werkzaamheid `DakkapelPlaatsen`) i.p.v. `null`. Noteer de uitkomst in het taakrapport.
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add src/leefomgevinglab/usecases/vergunningen/resolver.py src/geluidsmeter/api.py tests/test_vergunningen_resolver.py tests/test_api_chat.py
+git commit -m "feat(llab): extraheer kale activiteit uit chatvraag vóór DSO-zoek
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+---
+
 ## Out of scope (vervolg)
 
-- Activiteit-extractie uit de vraag via een aparte LLM-stap (nu: rauwe vraag → ZoekInterface).
 - Adres-tekst → geocoding (PDOK Locatieserver); nu alleen kaartprik.
 - Gespreksgeschiedenis / multi-turn.
 - Interactieve vragenboom / diepere indieningsvereisten-inhoud.
