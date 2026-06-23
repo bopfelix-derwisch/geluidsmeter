@@ -58,6 +58,13 @@ def test_cap_op_regelingen(monkeypatch):
     assert out["aantal_beperkt_tot"] == 2
 
 
+def test_aantal_beperkt_tot_afwezig_zonder_truncatie(monkeypatch):
+    _patch_rd(monkeypatch)
+    ozon = _Ozon(regelingen=_REGS, teksten=[])
+    out = op.omgevingsplan_op_locatie(LOC, ozon, max_regelingen=5)
+    assert "aantal_beperkt_tot" not in out
+
+
 def test_geen_relevante_regeling_geeft_none(monkeypatch):
     _patch_rd(monkeypatch)
     ozon = _Ozon(regelingen=[{"titel": "NOVI", "type": "Omgevingsvisie", "bevoegd_gezag": "rijk", "uri": "_n"}])

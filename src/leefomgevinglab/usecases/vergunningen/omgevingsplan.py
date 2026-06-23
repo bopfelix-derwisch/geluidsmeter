@@ -24,12 +24,15 @@ def omgevingsplan_op_locatie(locatie: dict, ozon_connector, max_regelingen: int 
         regelteksten = ozon_connector.regelteksten_op_punt(top["uri"], rd, max_regelteksten)
     except ConnectorError:
         regelteksten = []
-    return {
+    begrensd = relevant[:max_regelingen]
+    result = {
         "regelingen": [{"titel": r["titel"], "type": r["type"], "bevoegd_gezag": r["bevoegd_gezag"]}
-                       for r in relevant[:max_regelingen]],
+                       for r in begrensd],
         "top_regeling": top["titel"],
         "regelteksten": regelteksten,
         "locatie_rd": list(rd),
-        "aantal_beperkt_tot": max_regelingen,
         "bron": BRON,
     }
+    if len(relevant) > max_regelingen:
+        result["aantal_beperkt_tot"] = max_regelingen
+    return result
