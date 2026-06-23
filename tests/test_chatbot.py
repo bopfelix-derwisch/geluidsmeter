@@ -176,6 +176,19 @@ def test_beantwoord_rag_down_regels_blijft(monkeypatch):
     assert out["regels"] == _REGELS_OK      # regels overleven onafhankelijk
 
 
+def test_beantwoord_rag_down_omgevingsplan_blijft(monkeypatch):
+    def embed_boom(texts):
+        raise ConnectorError("embed down")
+
+    store = _Store([])
+    out = chatbot.beantwoord("wat geldt hier?", store, embed_boom,
+                             llm_base_url="http://x/v1", model="qwen",
+                             locatie=LOC, omgevingsplan_fn=lambda loc: _OP_OK)
+    assert out["beschikbaar"] is False        # RAG faalde
+    assert out["antwoord"] is None
+    assert out["omgevingsplan"] == _OP_OK     # omgevingsplan overleeft onafhankelijk
+
+
 _OP_OK = {
     "regelingen": [{"titel": "Omgevingsplan Z", "type": "Omgevingsplan", "bevoegd_gezag": "gem Z"}],
     "top_regeling": "Omgevingsplan Z", "regelteksten": ["Bouwregels"],
