@@ -58,3 +58,25 @@ def kies_werkzaamheid(vraag: str, kandidaten: list[dict], llm_base_url: str, mod
                 "zekerheid_match": zekerheid}
     except (httpx.HTTPError, KeyError, ValueError, IndexError, TypeError):
         return _top_hit(kandidaten, "LLM niet beschikbaar; hoogst gerankte gekozen", "laag")
+
+
+def extract_activiteit(vraag: str, llm_base_url: str, model: str, timeout_s: float = 60.0) -> str:
+    prompt = (
+        "Haal uit de volgende vraag de kale activiteit/werkzaamheid als korte zelfstandige "
+        "woordgroep, zonder vraagwoorden, locatie of leestekens. Geef UITSLUITEND die woordgroep "
+        "terug, niets anders.\n\n"
+        f"Vraag: {vraag}\nActiviteit:"
+    )
+    try:
+        resp = httpx.post(
+            f"{llm_base_url.rstrip('/')}/chat/completions",
+            json={"model": model, "messages": [{"role": "user", "content": prompt}],
+                  "temperature": 0.0},
+            timeout=timeout_s,
+        )
+        if resp.status_code >= 400:
+            raise httpx.HTTPError(f"HTTP {resp.status_code}")
+        tekst = resp.json()["choices"][0]["message"]["content"].strip()
+        return tekst or vraag
+    except (httpx.HTTPError, KeyError, ValueError, IndexError, TypeError):
+        return vraag

@@ -27,6 +27,7 @@ import os
 from leefomgevinglab.connectors.dso import DsoConnector
 from leefomgevinglab.connectors.dso_zoek import ZoekConnector
 from leefomgevinglab.usecases.vergunningen import service as vergunningen_service
+from leefomgevinglab.usecases.vergunningen import resolver as vergunningen_resolver
 from functools import partial
 from leefomgevinglab.rag.embed import embed_texts
 from leefomgevinglab.rag.store import VectorStore
@@ -446,8 +447,12 @@ def api_chat(req: ChatRequest):
     llm = _config.get("leefomgevinglab", {}).get("llm", {})
 
     def regels_fn(vraag: str, locatie: dict) -> dict:
+        activiteit = vergunningen_resolver.extract_activiteit(
+            vraag, llm.get("base_url", "http://localhost:8080/v1"),
+            llm.get("model", "qwen2.5-32b"), llm.get("timeout_s", 60),
+        )
         return vergunningen_service.regels_opzoeken(
-            vraag, locatie, _zoek_connector(), _dso_connector(), _llm_cfg()
+            activiteit, locatie, _zoek_connector(), _dso_connector(), _llm_cfg()
         )
 
     return chatbot.beantwoord(
