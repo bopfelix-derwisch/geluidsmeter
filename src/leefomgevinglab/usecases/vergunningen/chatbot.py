@@ -11,6 +11,10 @@ VANGNET = (
     "Raadpleeg het bevoegd gezag of het Omgevingsloket (omgevingswet.overheid.nl) "
     "voor de officiele vergunning- of meldingsplicht."
 )
+# Begrens de antwoord-generatie: op de Orin duurt een lange (3-bronnen) prompt zonder cap
+# tot ~79s — over de llm-timeout — waardoor de RAG-laag stil naar leeg degradeerde. Een
+# bondig indicatief antwoord heeft genoeg aan dit budget en blijft binnen de timeout.
+ANTWOORD_MAX_TOKENS = 500
 
 
 def build_prompt(vraag: str, passages: list[dict], regels: dict | None = None,
@@ -96,7 +100,8 @@ def beantwoord(vraag: str, store, embed_fn, llm_base_url: str, model: str,
     try:
         resp = httpx.post(
             f"{llm_base_url.rstrip('/')}/chat/completions",
-            json={"model": model, "messages": [{"role": "user", "content": prompt}], "temperature": 0.2},
+            json={"model": model, "messages": [{"role": "user", "content": prompt}],
+                  "temperature": 0.2, "max_tokens": ANTWOORD_MAX_TOKENS},
             timeout=timeout_s,
         )
         resp.raise_for_status()

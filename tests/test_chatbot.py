@@ -59,6 +59,19 @@ def test_beantwoord_happy_contract(monkeypatch):
     assert out["disclaimer"] == chatbot.DISCLAIMER
 
 
+def test_beantwoord_antwoord_call_begrenst_max_tokens(monkeypatch):
+    store = _Store([{"text": "x", "url": "https://iplo.nl/a", "score": 0.9}])
+    captured = {}
+
+    def fake_post(url, json=None, timeout=None):
+        captured["json"] = json
+        return _Resp({"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    chatbot.beantwoord("iets", store, _embed_ok, llm_base_url="http://x/v1", model="qwen")
+    assert captured["json"]["max_tokens"] == chatbot.ANTWOORD_MAX_TOKENS
+
+
 def test_beantwoord_geen_context_degradeert(monkeypatch):
     store = _Store([])
     out = chatbot.beantwoord("iets", store, _embed_ok,
