@@ -97,7 +97,7 @@
         <tbody>
           <tr><td>Leefomgeving-landing</td><td class="st-live">✓ live</td><td><a href="/">/</a></td><td>—</td></tr>
           <tr><td>REV-viewer (externe veiligheid) + AI-duiding</td><td class="st-live">✓ live</td><td><a href="/viewer">/viewer</a> · <code>/api/rev/features</code></td><td>REV via PDOK OGC API Features</td></tr>
-          <tr><td>Vergunningen-chatbot (RAG + rules-as-code)</td><td class="st-live">✓ live</td><td><a href="/chatbot">/chatbot</a> · <code>/api/chat</code></td><td>IPLO + bge-m3 + Qwen; met kaartprik weegt hij óók de feitelijke DSO-regels mee</td></tr>
+          <tr><td>Vergunningen-chatbot (RAG + rules-as-code + omgevingsplan)</td><td class="st-live">✓ live</td><td><a href="/chatbot">/chatbot</a> · <code>/api/chat</code></td><td>IPLO + bge-m3 + Qwen; met kaartprik weegt hij óók de DSO toepasbare regels én de geldende omgevingsplan-regels op die plek mee</td></tr>
           <tr><td>Semantische browser (IMX-Geo + IMEV)</td><td class="st-live">✓ live</td><td><a href="/semantiek">/semantiek</a></td><td>IMX-Geo linked data + IMEV-begrippen</td></tr>
           <tr><td>Datavraag-chatbot (NL→SPARQL op linked data)</td><td class="st-live">✓ live</td><td><a href="/datavraag">/datavraag</a> · <a href="/poc">/poc</a> · <code>/api/datavraag</code></td><td>eigen REV-LD + Kadaster KKG (SPARQL/GeoSPARQL)</td></tr>
           <tr><td>Geluidsmeter publiek + dashboard</td><td class="st-live">✓ live</td><td><a href="/public">/public</a> · <a href="/dashboard">/dashboard</a></td><td>eigen sensor + RIVM/CVGG</td></tr>
@@ -237,11 +237,11 @@
           <p>IMX-Geo als crossdomein-spil: objecttypen/begrippen uit BAG/BGT/BRK/REV… met hun koppelingen in één interactieve graaf.</p>
           <div class="src">IMX-Geo linked data · Cytoscape</div>
         </a>
-        <div class="card">
-          <h3>Regels-op-de-kaart (DSO Presenteren)</h3>
-          <p>"Wat geldt hier" via kaartklare omgevingsdocumenten uit DSO Presenteren (Ozon), naast de REV-laag. Open, geen indien-rol nodig.</p>
+        <a class="card" href="/chatbot">
+          <h3>Regels-op-de-kaart (DSO Presenteren) <span class="st-live">— deels live</span></h3>
+          <p>"Wat geldt hier" via Ozon is nu tekstueel live in de chatbot (prik een locatie → geldende omgevingsplan-regelingen). Volgende stap: dezelfde Ozon-laag visueel op de kaart in <code>/viewer</code>, naast REV.</p>
           <div class="src">DSO Presenteren (Ozon) · GeoDSO</div>
-        </div>
+        </a>
       </div>
     </section>
   </div>
