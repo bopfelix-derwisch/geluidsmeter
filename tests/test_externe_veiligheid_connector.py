@@ -26,6 +26,10 @@ def test_bouwt_wfs_params_met_rd_punt(tmp_path):
     assert p["typeNames"] == "rev_public:ev_explosieaandachtsgebieden"
     assert p["outputFormat"] == "application/json"
     assert p["cql_filter"] == "INTERSECTS(geometrie, POINT(151658.2 418729.5))"
+    assert p["service"] == "WFS"
+    assert p["version"] == "2.0.0"
+    assert p["srsName"] == "EPSG:4326"
+    assert p["count"] == 5
     assert out == [{"bron": "Autobedrijf Mekes", "maatgevende_stof": "propaan"}]
 
 
