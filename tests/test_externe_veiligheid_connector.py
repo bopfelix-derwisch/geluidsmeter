@@ -58,3 +58,18 @@ def test_respecteert_max_n(tmp_path):
     payload = {"features": [{"properties": {"bedrijfsnaam": str(i)}} for i in range(10)]}
     c = _conn(tmp_path, {}, payload)
     assert len(c.aandachtsgebieden_op_punt("laag", RD, max_n=3)) == 3
+
+
+def test_maatgevende_stof_json_string_pakt_chemischeNaam(tmp_path):
+    payload = {"features": [{"properties": {
+        "bedrijfsnaam": "Bungalowpark Hessenheem",
+        "maatgevende_stof": '{"categorieNaam": "klasse 2.1: Brandbaar gas", "chemischeNaam": "propaan"}'}}]}
+    c = _conn(tmp_path, {}, payload)
+    assert c.aandachtsgebieden_op_punt("rev_public:ev_explosieaandachtsgebieden", RD)[0]["maatgevende_stof"] == "propaan"
+
+
+def test_maatgevende_stof_plain_en_kapot_blijft_string(tmp_path):
+    c1 = _conn(tmp_path, {}, {"features": [{"properties": {"bedrijfsnaam": "Test", "maatgevende_stof": "propaan"}}]})
+    assert c1.aandachtsgebieden_op_punt("laag", RD)[0]["maatgevende_stof"] == "propaan"
+    c2 = _conn(tmp_path, {}, {"features": [{"properties": {"bedrijfsnaam": "Test", "maatgevende_stof": "{kapot json"}}]})
+    assert c2.aandachtsgebieden_op_punt("laag", RD)[0]["maatgevende_stof"] == "{kapot json"

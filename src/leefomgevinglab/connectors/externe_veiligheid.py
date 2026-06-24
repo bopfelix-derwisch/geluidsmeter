@@ -6,6 +6,7 @@ Geometrie-attribuut: 'geometrie'. De bron-property verschilt per laag (ev=bedrij
 bl=naamexploitant, bn=bronhouder); maatgevende_stof zit op alle drie.
 Live geverifieerd 2026-06-24; zie spec 2026-06-24-externe-veiligheid-aandachtsgebieden-chatbot-design.md.
 """
+import json
 from .base import BaseConnector
 
 
@@ -30,10 +31,9 @@ class ExterneVeiligheidConnector(BaseConnector):
             stof = p.get("maatgevende_stof")
             if isinstance(stof, str) and stof.startswith("{"):
                 # live WFS geeft JSON-string: '{"categorieNaam": ..., "chemischeNaam": "propaan"}'
-                import json as _json
                 try:
-                    stof = _json.loads(stof)
-                except ValueError:
+                    stof = json.loads(stof)
+                except (ValueError, json.JSONDecodeError):
                     pass
             if isinstance(stof, dict):   # live: {"categorieNaam": ..., "chemischeNaam": "propaan"}
                 stof = stof.get("chemischeNaam") or stof.get("categorieNaam")
