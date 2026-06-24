@@ -110,6 +110,14 @@
         '<div class="alt">Bron: ' + esc(o.bron) + '</div></div>';
     }
 
+    function externeVeiligheidHtml(e) {
+      if (!e || !(e.aandachtsgebieden || []).length) return "";
+      return '<div class="regels" style="border-color:#a33;background:#2a1414">' +
+        '<h4 style="color:#ff9a8a">⚠️ Externe veiligheid</h4>' +
+        '<div>' + esc(e.waarschuwing) + '</div>' +
+        '<div class="alt">Bron: ' + esc(e.bron) + '</div></div>';
+    }
+
     document.getElementById("f").addEventListener("submit", async (e) => {
       e.preventDefault();
       const q = document.getElementById("q").value.trim();
@@ -122,7 +130,7 @@
         if (locatie) body.locatie = locatie;
         const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         const d = await r.json();
-        if (!d.beschikbaar && !d.regels && !d.omgevingsplan) {
+        if (!d.beschikbaar && !d.regels && !d.omgevingsplan && !d.externe_veiligheid) {
           pending.innerHTML = '<p>Geen antwoord beschikbaar (index of model offline).</p><div class="disc">' + esc(d.disclaimer) + '<br>' + esc(d.vangnet) + '</div>';
           return;
         }
@@ -131,6 +139,7 @@
           (d.antwoord ? "<p>" + esc(d.antwoord) + "</p>" : "<p><em>Geen IPLO-antwoord; zie DSO-regels hieronder.</em></p>") +
           regelsHtml(d.regels) +
           omgevingsplanHtml(d.omgevingsplan) +
+          externeVeiligheidHtml(d.externe_veiligheid) +
           (bronnen ? '<div class="bronnen">Bronnen:<br>' + bronnen + "</div>" : "") +
           '<div class="disc">' + esc(d.disclaimer) + "<br>" + esc(d.vangnet) + "</div>";
       } catch (err) { pending.innerHTML = "Er ging iets mis."; }
