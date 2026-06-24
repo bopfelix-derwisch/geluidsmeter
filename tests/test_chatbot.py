@@ -270,3 +270,73 @@ def test_beantwoord_ozon_down_rag_blijft(monkeypatch):
     assert out["omgevingsplan"] is None
     assert out["beschikbaar"] is True
     assert out["antwoord"] == "ok"
+
+
+_EV_OK = {
+    "aandachtsgebieden": [{"herkomst": "inrichting", "bron": "Autobedrijf Mekes", "maatgevende_stof": "propaan"}],
+    "waarschuwing": "Let op: deze locatie ligt in een explosieaandachtsgebied (herkomst: inrichting; "
+                    "bron: Autobedrijf Mekes; stof: propaan). Voor een kwetsbaar gebouw gelden hier "
+                    "aanvullende eisen; raadpleeg het bevoegd gezag.",
+    "locatie_rd": [151658.2, 418729.5], "bron": "REV (rev-portaal.nl)",
+}
+
+
+def test_build_prompt_met_ev_voegt_waarschuwing_toe():
+    p = chatbot.build_prompt("mag ik bouwen?", [{"text": "c", "url": "u1"}], None, None, _EV_OK)
+    assert "externe veiligheid" in p.lower()
+    assert "explosieaandachtsgebied" in p
+
+
+def test_build_prompt_zonder_ev_geen_waarschuwing():
+    p = chatbot.build_prompt("iets", [{"text": "c", "url": "u1"}])
+    assert "explosieaandachtsgebied" not in p
+
+
+def test_beantwoord_met_ev(monkeypatch):
+    store = _Store([{"text": "x", "url": "https://iplo.nl/a", "score": 0.9}])
+    captured = {}
+
+    def fake_post(url, json=None, timeout=None):
+        captured["prompt"] = json["messages"][0]["content"]
+        return _Resp({"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    out = chatbot.beantwoord("mag ik bouwen?", store, _embed_ok, llm_base_url="http://x/v1", model="qwen",
+                             locatie=LOC, ev_fn=lambda loc: _EV_OK)
+    assert out["externe_veiligheid"] == _EV_OK
+    assert "explosieaandachtsgebied" in captured["prompt"]
+    assert out["beschikbaar"] is True
+
+
+def test_beantwoord_zonder_locatie_geen_ev(monkeypatch):
+    store = _Store([{"text": "x", "url": "u", "score": 0.5}])
+    called = {"n": 0}
+
+    def ev_fn(loc):
+        called["n"] += 1
+        return _EV_OK
+
+    def fake_post(url, json=None, timeout=None):
+        return _Resp({"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    out = chatbot.beantwoord("iets", store, _embed_ok, llm_base_url="http://x/v1", model="qwen", ev_fn=ev_fn)
+    assert out["externe_veiligheid"] is None
+    assert called["n"] == 0
+
+
+def test_beantwoord_ev_down_rag_blijft(monkeypatch):
+    store = _Store([{"text": "x", "url": "u", "score": 0.5}])
+
+    def ev_boom(loc):
+        raise ConnectorError("rev down")
+
+    def fake_post(url, json=None, timeout=None):
+        return _Resp({"choices": [{"message": {"content": "ok"}}]})
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    out = chatbot.beantwoord("iets", store, _embed_ok, llm_base_url="http://x/v1", model="qwen",
+                             locatie=LOC, ev_fn=ev_boom)
+    assert out["externe_veiligheid"] is None
+    assert out["beschikbaar"] is True
+    assert out["antwoord"] == "ok"

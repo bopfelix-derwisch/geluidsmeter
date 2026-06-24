@@ -29,6 +29,8 @@ from leefomgevinglab.connectors.dso_zoek import ZoekConnector
 from leefomgevinglab.usecases.vergunningen import service as vergunningen_service
 from leefomgevinglab.usecases.vergunningen import resolver as vergunningen_resolver
 from leefomgevinglab.usecases.vergunningen import omgevingsplan as omgevingsplan_mod
+from leefomgevinglab.usecases.vergunningen import externe_veiligheid as externe_veiligheid_mod
+from leefomgevinglab.connectors.externe_veiligheid import ExterneVeiligheidConnector
 from leefomgevinglab.connectors.ozon import OzonConnector
 from functools import partial
 from leefomgevinglab.rag.embed import embed_texts
@@ -406,6 +408,15 @@ def _ozon_connector() -> OzonConnector:
     )
 
 
+def _ev_connector() -> ExterneVeiligheidConnector:
+    ll = _config.get("leefomgevinglab", {})
+    ev = ll.get("externe_veiligheid", {})
+    return ExterneVeiligheidConnector(
+        wfs_url=ev.get("wfs_url", ""),
+        cache_dir=ll.get("cache_dir", "/tmp/llab_cache"),
+    )
+
+
 def _llm_cfg() -> dict:
     llm = _config.get("leefomgevinglab", {}).get("llm", {})
     return {
@@ -454,6 +465,7 @@ def api_chat(req: ChatRequest):
     if store is None:
         return {
             "vraag": req.vraag, "antwoord": None, "bronnen": [], "regels": None, "omgevingsplan": None,
+            "externe_veiligheid": None,
             "onzekerheid": True, "disclaimer": chatbot.DISCLAIMER, "vangnet": chatbot.VANGNET,
             "beschikbaar": False,
         }
@@ -477,12 +489,19 @@ def api_chat(req: ChatRequest):
             max_regelteksten=ozon_cfg.get("max_regelteksten", 5),
         )
 
+    ev_cfg = _config.get("leefomgevinglab", {}).get("externe_veiligheid", {})
+
+    def ev_fn(locatie: dict):
+        return externe_veiligheid_mod.check_aandachtsgebieden(
+            locatie, _ev_connector(), ev_cfg.get("lagen", {}), max_n=ev_cfg.get("max_features", 5))
+
     return chatbot.beantwoord(
         req.vraag, store, _rag_embed_fn(),
         llm_base_url=llm.get("base_url", "http://localhost:8080/v1"),
         model=llm.get("model", "qwen2.5-32b"),
         top_k=rag.get("top_k", 4), timeout_s=llm.get("timeout_s", 60),
         locatie=req.locatie, regels_fn=regels_fn, omgevingsplan_fn=omgevingsplan_fn,
+        ev_fn=ev_fn,
     )
 
 

@@ -18,7 +18,7 @@ ANTWOORD_MAX_TOKENS = 500
 
 
 def build_prompt(vraag: str, passages: list[dict], regels: dict | None = None,
-                 omgevingsplan: dict | None = None) -> str:
+                 omgevingsplan: dict | None = None, externe_veiligheid: dict | None = None) -> str:
     context = "\n\n".join(f"[bron: {p['url']}]\n{p['text']}" for p in passages)
     dso = ""
     if regels and regels.get("beschikbaar") and regels.get("gekozen_werkzaamheid"):
@@ -44,6 +44,12 @@ def build_prompt(vraag: str, passages: list[dict], regels: dict | None = None,
             + (f" Relevante regels in {omgevingsplan.get('top_regeling')}: {teksten}." if teksten else "")
             + " Gebruik dit om concreet te zijn over wat er op deze plek geldt."
         )
+    ev_sectie = ""
+    if externe_veiligheid and externe_veiligheid.get("aandachtsgebieden"):
+        ev_sectie = (
+            "\n\nLET OP — EXTERNE VEILIGHEID: " + externe_veiligheid.get("waarschuwing", "")
+            + " Benoem dit duidelijk in je antwoord; trek geen stellig juridisch besluit."
+        )
     return (
         "Je bent een feitelijke assistent over de Omgevingswet. Geef een nuttig, concreet en "
         "indicatief antwoord op basis van de onderstaande bronnen (IPLO-context en, indien aanwezig, "
@@ -51,14 +57,14 @@ def build_prompt(vraag: str, passages: list[dict], regels: dict | None = None,
         "zeg dat eerlijk. Geef geen stellig juridisch ja/nee-besluit over vergunningplicht, maar wees "
         "wel concreet over wat er geldt en welke stap de gebruiker kan zetten. Sluit kort af met de "
         "notie dat het bevoegd gezag het definitieve besluit neemt. Verwijs naar de gebruikte bron(nen)."
-        f"{dso}{op_sectie}\n\nContext:\n{context}\n\nVraag: {vraag}"
+        f"{dso}{op_sectie}{ev_sectie}\n\nContext:\n{context}\n\nVraag: {vraag}"
     )
 
 
 def beantwoord(vraag: str, store, embed_fn, llm_base_url: str, model: str,
                top_k: int = 4, timeout_s: float = 60.0,
                locatie: dict | None = None, regels_fn=None,
-               omgevingsplan_fn=None) -> dict:
+               omgevingsplan_fn=None, ev_fn=None) -> dict:
     base = {
         "vraag": vraag,
         "onzekerheid": True,
@@ -85,18 +91,30 @@ def beantwoord(vraag: str, store, embed_fn, llm_base_url: str, model: str,
         except ConnectorError:
             omgevingsplan = None
 
+    # Externe veiligheid (REV-aandachtsgebieden) — onafhankelijk; mag het RAG-antwoord nooit laten vallen
+    externe_veiligheid = None
+    if locatie and ev_fn is not None:
+        try:
+            ev = ev_fn(locatie)
+            if ev:
+                externe_veiligheid = ev
+        except ConnectorError:
+            externe_veiligheid = None
+
     # RAG over IPLO
     try:
         qvec = embed_fn([vraag])[0]
         passages = store.search(qvec, top_k)
     except ConnectorError:
         return {**base, "antwoord": None, "bronnen": [], "regels": regels,
-                "omgevingsplan": omgevingsplan, "beschikbaar": False}
+                "omgevingsplan": omgevingsplan, "externe_veiligheid": externe_veiligheid,
+                "beschikbaar": False}
     if not passages:
         return {**base, "antwoord": None, "bronnen": [], "regels": regels,
-                "omgevingsplan": omgevingsplan, "beschikbaar": False}
+                "omgevingsplan": omgevingsplan, "externe_veiligheid": externe_veiligheid,
+                "beschikbaar": False}
 
-    prompt = build_prompt(vraag, passages, regels, omgevingsplan)
+    prompt = build_prompt(vraag, passages, regels, omgevingsplan, externe_veiligheid)
     try:
         resp = httpx.post(
             f"{llm_base_url.rstrip('/')}/chat/completions",
@@ -108,8 +126,10 @@ def beantwoord(vraag: str, store, embed_fn, llm_base_url: str, model: str,
         antwoord = resp.json()["choices"][0]["message"]["content"].strip()
     except (httpx.HTTPError, KeyError, ValueError, IndexError):
         return {**base, "antwoord": None, "bronnen": [], "regels": regels,
-                "omgevingsplan": omgevingsplan, "beschikbaar": False}
+                "omgevingsplan": omgevingsplan, "externe_veiligheid": externe_veiligheid,
+                "beschikbaar": False}
 
     bronnen = list(dict.fromkeys(p["url"] for p in passages))   # unieke URL's, volgorde behouden
     return {**base, "antwoord": antwoord, "bronnen": bronnen, "regels": regels,
-            "omgevingsplan": omgevingsplan, "beschikbaar": True}
+            "omgevingsplan": omgevingsplan, "externe_veiligheid": externe_veiligheid,
+            "beschikbaar": True}

@@ -83,6 +83,15 @@ leefomgevinglab:
       - production_facility_b   # Winning van delfstoffen
       - production_facility_f   # Bouw
     max_features: 500
+  externe_veiligheid:
+    # REV-EXPLOSIEaandachtsgebieden via de open REV GeoServer WFS (rev-portaal.nl). CQL INTERSECTS op
+    # RD/EPSG:28992-punt (lon/lat geeft stil 0 treffers). lagen = herkomst -> explosie-laag.
+    wfs_url: "https://rev-portaal.nl/geoserver/wfs"
+    max_features: 5
+    lagen:
+      inrichting: "rev_public:ev_explosieaandachtsgebieden"   # propaantanks, tankstations, ...
+      buisleiding: "rev_public:bl_explosieaandachtsgebieden"
+      basisnet: "rev_public:bn_explosieaandachtsgebieden"
   ozon:
     # DSO Ozon Omgevingsdocument Presenteren v8 (pre-productie; x-api-key; RD via Content-Crs OGC-URI).
     base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/omgevingsdocumenten/api/presenteren/v8"
