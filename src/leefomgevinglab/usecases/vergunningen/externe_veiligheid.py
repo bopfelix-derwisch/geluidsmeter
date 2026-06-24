@@ -12,10 +12,16 @@ BRON = "REV (rev-portaal.nl)"
 def check_aandachtsgebieden(locatie: dict, ev_connector, lagen: dict, max_n: int = 5) -> dict | None:
     rd = resolver.wgs84_naar_rd(locatie["lat"], locatie["lon"])
     aandachtsgebieden = []
+    _seen = set()
     for herkomst, laag in lagen.items():
         for t in ev_connector.aandachtsgebieden_op_punt(laag, rd, max_n):   # ConnectorError propageert
-            aandachtsgebieden.append({"herkomst": herkomst, "bron": t.get("bron"),
-                                      "maatgevende_stof": t.get("maatgevende_stof")})
+            item = {"herkomst": herkomst, "bron": t.get("bron"),
+                    "maatgevende_stof": t.get("maatgevende_stof")}
+            key = (item["herkomst"], item["bron"], item["maatgevende_stof"])
+            if key in _seen:
+                continue
+            _seen.add(key)
+            aandachtsgebieden.append(item)
     if not aandachtsgebieden:
         return None
     herkomsten = ", ".join(sorted({a["herkomst"] for a in aandachtsgebieden}))

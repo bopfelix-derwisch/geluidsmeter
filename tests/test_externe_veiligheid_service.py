@@ -60,3 +60,11 @@ def test_laag_fout_propageert(monkeypatch):
     conn = _Conn(error_laag="rev_public:bl_explosieaandachtsgebieden")
     with pytest.raises(ConnectorError):
         ev.check_aandachtsgebieden(LOC, conn, LAGEN)
+
+
+def test_dubbele_treffers_worden_ontdubbeld(monkeypatch):
+    _patch_rd(monkeypatch)
+    dup = {"bron": "Autobedrijf Mekes", "maatgevende_stof": "propaan"}
+    conn = _Conn(per_laag={"rev_public:ev_explosieaandachtsgebieden": [dup, dict(dup)]})
+    out = ev.check_aandachtsgebieden(LOC, conn, LAGEN)
+    assert len(out["aandachtsgebieden"]) == 1
