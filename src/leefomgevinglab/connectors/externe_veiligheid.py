@@ -28,6 +28,13 @@ class ExterneVeiligheidConnector(BaseConnector):
         for f in (data.get("features") or [])[:max_n]:
             p = f.get("properties") or {}
             stof = p.get("maatgevende_stof")
+            if isinstance(stof, str) and stof.startswith("{"):
+                # live WFS geeft JSON-string: '{"categorieNaam": ..., "chemischeNaam": "propaan"}'
+                import json as _json
+                try:
+                    stof = _json.loads(stof)
+                except ValueError:
+                    pass
             if isinstance(stof, dict):   # live: {"categorieNaam": ..., "chemischeNaam": "propaan"}
                 stof = stof.get("chemischeNaam") or stof.get("categorieNaam")
             out.append({

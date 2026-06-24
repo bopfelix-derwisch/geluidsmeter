@@ -134,6 +134,42 @@ def test_chat_locatie_geeft_omgevingsplan_door(monkeypatch):
     assert r.json()["omgevingsplan"]["top_regeling"] == "Omgevingsplan Z"
 
 
+def test_chat_locatie_geeft_externe_veiligheid_door(monkeypatch):
+    client = _client(monkeypatch)
+    api._config["leefomgevinglab"]["externe_veiligheid"] = {
+        "wfs_url": "https://x/wfs", "max_features": 5,
+        "lagen": {"inrichting": "rev_public:ev_explosieaandachtsgebieden"}}
+
+    class _Store:
+        def search(self, qv, k): return [{"text": "t", "url": "u", "score": 0.9}]
+
+    monkeypatch.setattr(api, "_rag_store", lambda: _Store())
+    monkeypatch.setattr(api, "_rag_embed_fn", lambda: (lambda texts: [[1.0, 0.0] for _ in texts]))
+
+    captured = {}
+
+    def fake_check(locatie, ev_connector, lagen, max_n=5):
+        captured["locatie"] = locatie
+        captured["lagen"] = lagen
+        return {"aandachtsgebieden": [{"herkomst": "inrichting", "bron": "X", "maatgevende_stof": "propaan"}],
+                "waarschuwing": "Let op", "locatie_rd": [1.0, 2.0], "bron": "REV (rev-portaal.nl)"}
+
+    monkeypatch.setattr(api.externe_veiligheid_mod, "check_aandachtsgebieden", fake_check)
+
+    def fake_beantwoord(vraag, store, embed_fn, **kw):
+        ev = kw["ev_fn"]({"lat": 51.0, "lon": 5.0})
+        return {"vraag": vraag, "antwoord": "ok", "bronnen": [], "regels": None, "omgevingsplan": None,
+                "externe_veiligheid": ev, "onzekerheid": True, "disclaimer": "d",
+                "vangnet": "bevoegd gezag", "beschikbaar": True}
+
+    monkeypatch.setattr(api.chatbot, "beantwoord", fake_beantwoord)
+    r = client.post("/api/chat", json={"vraag": "mag ik bouwen?", "locatie": {"lat": 51.0, "lon": 5.0}})
+    assert r.status_code == 200
+    assert captured["locatie"] == {"lat": 51.0, "lon": 5.0}
+    assert "inrichting" in captured["lagen"]
+    assert r.json()["externe_veiligheid"]["aandachtsgebieden"][0]["herkomst"] == "inrichting"
+
+
 def test_chat_locatie_extraheert_activiteit_voor_zoek(monkeypatch):
     client = _client(monkeypatch)
 
