@@ -100,7 +100,9 @@ leefomgevinglab:
   llm:
     base_url: "http://localhost:8080/v1"
     model: "qwen2.5-32b"
-    timeout_s: 60
+    # 120s: op de Orin duurt een 3-bronnen-antwoord ~50-60s; 60s was te krap waardoor
+    # de RAG-laag stil naar leeg degradeerde (zie ANTWOORD_MAX_TOKENS in chatbot.py).
+    timeout_s: 120
   semantiek:
     store_dir: "/mnt/nvme/geluidsmeter/data/semantiek"
     # Open IMX-Geo linked data (geen key). SKOS-conceptscheme = schone koppelingen;
