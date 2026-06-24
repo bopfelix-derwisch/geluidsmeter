@@ -97,6 +97,41 @@ def test_chat_no_index_regels_none(monkeypatch):
     assert r.status_code == 200
     assert r.json()["beschikbaar"] is False
     assert r.json()["regels"] is None
+    assert r.json()["omgevingsplan"] is None
+
+
+def test_chat_locatie_geeft_omgevingsplan_door(monkeypatch):
+    client = _client(monkeypatch)
+    api._config["leefomgevinglab"]["ozon"] = {
+        "base_url": "https://x/ozon/v8", "api_key_header": "x-api-key",
+        "max_regelingen": 3, "max_regelteksten": 5}
+
+    class _Store:
+        def search(self, qv, k): return [{"text": "t", "url": "u", "score": 0.9}]
+
+    monkeypatch.setattr(api, "_rag_store", lambda: _Store())
+    monkeypatch.setattr(api, "_rag_embed_fn", lambda: (lambda texts: [[1.0, 0.0] for _ in texts]))
+
+    captured = {}
+
+    def fake_op(locatie, ozon_connector, max_regelingen=3, max_regelteksten=5):
+        captured["locatie"] = locatie
+        return {"regelingen": [{"titel": "Omgevingsplan Z", "type": "Omgevingsplan", "bevoegd_gezag": "g"}],
+                "top_regeling": "Omgevingsplan Z", "regelteksten": [], "locatie_rd": [1.0, 2.0],
+                "aantal_beperkt_tot": 3, "bron": "DSO Presenteren (Ozon)"}
+
+    monkeypatch.setattr(api.omgevingsplan_mod, "omgevingsplan_op_locatie", fake_op)
+
+    def fake_beantwoord(vraag, store, embed_fn, **kw):
+        op = kw["omgevingsplan_fn"]({"lat": 52.0, "lon": 5.1})   # exerceer de closure
+        return {"vraag": vraag, "antwoord": "ok", "bronnen": [], "regels": None, "omgevingsplan": op,
+                "onzekerheid": True, "disclaimer": "d", "vangnet": "bevoegd gezag", "beschikbaar": True}
+
+    monkeypatch.setattr(api.chatbot, "beantwoord", fake_beantwoord)
+    r = client.post("/api/chat", json={"vraag": "mag ik bouwen?", "locatie": {"lat": 52.0, "lon": 5.1}})
+    assert r.status_code == 200
+    assert captured["locatie"] == {"lat": 52.0, "lon": 5.1}
+    assert r.json()["omgevingsplan"]["top_regeling"] == "Omgevingsplan Z"
 
 
 def test_chat_locatie_extraheert_activiteit_voor_zoek(monkeypatch):

@@ -83,6 +83,12 @@ leefomgevinglab:
       - production_facility_b   # Winning van delfstoffen
       - production_facility_f   # Bouw
     max_features: 500
+  ozon:
+    # DSO Ozon Omgevingsdocument Presenteren v8 (pre-productie; x-api-key; RD via Content-Crs OGC-URI).
+    base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/omgevingsdocumenten/api/presenteren/v8"
+    api_key_header: "x-api-key"
+    max_regelingen: 3
+    max_regelteksten: 5
   dso:
     # DSO Toepasbare Regels (pre-productie). Live geverifieerd 2026-06-22 met DSO_API_KEY.
     # Keys werken alleen op service.pre.* (productie geeft 401). Header x-api-key.

@@ -98,6 +98,18 @@
         '<div class="alt">Bron: ' + esc(r.bron) + "</div></div>";
     }
 
+    function omgevingsplanHtml(o) {
+      if (!o || !(o.regelingen || []).length) return "";
+      const items = o.regelingen.map(r =>
+        '<li>' + esc(r.titel) + ' <span class="muted">(' + esc(r.type) + ' – ' + esc(r.bevoegd_gezag) + ')</span></li>'
+      ).join("");
+      const teksten = (o.regelteksten || []).map(t => esc(t)).join(" · ");
+      return '<div class="regels"><h4>Wat geldt hier (omgevingsdocumenten)</h4>' +
+        '<ul style="margin:4px 0 0;padding-left:18px">' + items + '</ul>' +
+        (teksten ? '<div class="alt">Regels in ' + esc(o.top_regeling) + ': ' + teksten + '</div>' : '') +
+        '<div class="alt">Bron: ' + esc(o.bron) + '</div></div>';
+    }
+
     document.getElementById("f").addEventListener("submit", async (e) => {
       e.preventDefault();
       const q = document.getElementById("q").value.trim();
@@ -110,7 +122,7 @@
         if (locatie) body.locatie = locatie;
         const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
         const d = await r.json();
-        if (!d.beschikbaar && !d.regels) {
+        if (!d.beschikbaar && !d.regels && !d.omgevingsplan) {
           pending.innerHTML = '<p>Geen antwoord beschikbaar (index of model offline).</p><div class="disc">' + esc(d.disclaimer) + '<br>' + esc(d.vangnet) + '</div>';
           return;
         }
@@ -118,6 +130,7 @@
         pending.innerHTML =
           (d.antwoord ? "<p>" + esc(d.antwoord) + "</p>" : "<p><em>Geen IPLO-antwoord; zie DSO-regels hieronder.</em></p>") +
           regelsHtml(d.regels) +
+          omgevingsplanHtml(d.omgevingsplan) +
           (bronnen ? '<div class="bronnen">Bronnen:<br>' + bronnen + "</div>" : "") +
           '<div class="disc">' + esc(d.disclaimer) + "<br>" + esc(d.vangnet) + "</div>";
       } catch (err) { pending.innerHTML = "Er ging iets mis."; }

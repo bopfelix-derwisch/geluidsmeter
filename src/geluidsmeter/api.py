@@ -28,6 +28,8 @@ from leefomgevinglab.connectors.dso import DsoConnector
 from leefomgevinglab.connectors.dso_zoek import ZoekConnector
 from leefomgevinglab.usecases.vergunningen import service as vergunningen_service
 from leefomgevinglab.usecases.vergunningen import resolver as vergunningen_resolver
+from leefomgevinglab.usecases.vergunningen import omgevingsplan as omgevingsplan_mod
+from leefomgevinglab.connectors.ozon import OzonConnector
 from functools import partial
 from leefomgevinglab.rag.embed import embed_texts
 from leefomgevinglab.rag.store import VectorStore
@@ -393,6 +395,17 @@ def _dso_connector() -> DsoConnector:
     )
 
 
+def _ozon_connector() -> OzonConnector:
+    ll = _config.get("leefomgevinglab", {})
+    ozon = ll.get("ozon", {})
+    return OzonConnector(
+        base_url=ozon.get("base_url", ""),
+        api_key=os.environ.get("DSO_API_KEY"),
+        api_key_header=ozon.get("api_key_header", "x-api-key"),
+        cache_dir=ll.get("cache_dir", "/tmp/llab_cache"),
+    )
+
+
 def _llm_cfg() -> dict:
     llm = _config.get("leefomgevinglab", {}).get("llm", {})
     return {
@@ -440,11 +453,13 @@ def api_chat(req: ChatRequest):
     store = _rag_store()
     if store is None:
         return {
-            "vraag": req.vraag, "antwoord": None, "bronnen": [], "regels": None, "onzekerheid": True,
-            "disclaimer": chatbot.DISCLAIMER, "vangnet": chatbot.VANGNET, "beschikbaar": False,
+            "vraag": req.vraag, "antwoord": None, "bronnen": [], "regels": None, "omgevingsplan": None,
+            "onzekerheid": True, "disclaimer": chatbot.DISCLAIMER, "vangnet": chatbot.VANGNET,
+            "beschikbaar": False,
         }
     rag = _config.get("leefomgevinglab", {}).get("rag", {})
     llm = _config.get("leefomgevinglab", {}).get("llm", {})
+    ozon_cfg = _config.get("leefomgevinglab", {}).get("ozon", {})
 
     def regels_fn(vraag: str, locatie: dict) -> dict:
         activiteit = vergunningen_resolver.extract_activiteit(
@@ -455,12 +470,19 @@ def api_chat(req: ChatRequest):
             activiteit, locatie, _zoek_connector(), _dso_connector(), _llm_cfg()
         )
 
+    def omgevingsplan_fn(locatie: dict):
+        return omgevingsplan_mod.omgevingsplan_op_locatie(
+            locatie, _ozon_connector(),
+            max_regelingen=ozon_cfg.get("max_regelingen", 3),
+            max_regelteksten=ozon_cfg.get("max_regelteksten", 5),
+        )
+
     return chatbot.beantwoord(
         req.vraag, store, _rag_embed_fn(),
         llm_base_url=llm.get("base_url", "http://localhost:8080/v1"),
         model=llm.get("model", "qwen2.5-32b"),
         top_k=rag.get("top_k", 4), timeout_s=llm.get("timeout_s", 60),
-        locatie=req.locatie, regels_fn=regels_fn,
+        locatie=req.locatie, regels_fn=regels_fn, omgevingsplan_fn=omgevingsplan_fn,
     )
 
 
