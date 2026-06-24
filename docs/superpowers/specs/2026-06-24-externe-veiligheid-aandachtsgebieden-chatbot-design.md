@@ -18,11 +18,18 @@ niet-juridisch, als vierde bron naast IPLO/regels/omgevingsplan.
 **REV GeoServer WFS** — `https://rev-portaal.nl/geoserver/wfs` (de unified REV-kaartbeelden-service).
 **Open** (geen key), GeoJSON-output, polygonen.
 
-Relevante lagen (`rev_public:`-namespace; per aandachtsgebied-type, bron-categorie `ev_` = inrichtingen):
-- `rev_public:ev_brandaandachtsgebieden`
-- `rev_public:ev_explosieaandachtsgebieden`
-- `rev_public:ev_gifwolkaandachtsgebieden`
-(transport `bn_*` en buisleidingen `bl_*` bestaan ook; config-uitbreidbaar, niet in de default.)
+**Scope (gebruikersbesluit 2026-06-24): alleen het EXPLOSIE-aandachtsgebied**, maar wél over álle
+bronsoorten — inrichtingen (propaantanks, tankstations…), buisleidingen en basisnet-transport.
+Lagen (`rev_public:`-namespace):
+- `rev_public:ev_explosieaandachtsgebieden` — herkomst **inrichting** (propaantanks, tankstations, …)
+- `rev_public:bl_explosieaandachtsgebieden` — herkomst **buisleiding**
+- `rev_public:bn_explosieaandachtsgebieden` — herkomst **basisnet** (transportroute)
+
+(brand/gifwolk en de civiel-/vuurwerk-explosievarianten bestaan ook; config-uitbreidbaar, niet in de default.)
+
+**Bron-property verschilt per laag (geverifieerd):** `ev_` → `bedrijfsnaam`; `bl_` → `naamexploitant`;
+`bn_` → `bronhouder` (basisnet heeft geen bedrijf). Alle drie hebben `maatgevende_stof`. De connector
+pakt de bron uit het eerste aanwezige veld (`bedrijfsnaam` || `naamexploitant` || `bronhouder`).
 
 **Query (live geverifieerd):** `GET …/wfs` met params:
 `service=WFS&version=2.0.0&request=GetFeature&typeNames=<laag>&outputFormat=application/json&srsName=EPSG:4326&count=<n>&cql_filter=INTERSECTS(geometrie, POINT(<rd_x> <rd_y>))`
@@ -33,9 +40,11 @@ Relevante lagen (`rev_public:`-namespace; per aandachtsgebied-type, bron-categor
   Een lon/lat-punt geeft stil **0 treffers** (vals-negatief — gevaarlijk voor een veiligheidswaarschuwing).
   Daarom: locatie eerst via `resolver.wgs84_naar_rd` naar RD, dan `POINT(rd_x rd_y)`. (`srsName=EPSG:4326`
   bepaalt alleen het OUTPUT-formaat.)
-- Type (`brand`/`explosie`/`gifwolk`) volgt uit de **laagnaam**, niet uit een property.
-- Per feature: `bedrijfsnaam` (= bron), `evactiviteit` (activiteit, bv. propaantank),
-  `categorieaandachtsgebied` (registratiestatus, bv. "vastgesteld").
+- Het aandachtsgebied is altijd **explosie** (we kiezen alleen die lagen); de **herkomst**
+  (inrichting/buisleiding/basisnet) volgt uit de gekozen laag.
+- Bron-property verschilt per laag: `ev_` → `bedrijfsnaam`, `bl_` → `naamexploitant`, `bn_` →
+  `bronhouder`. Alle drie hebben `maatgevende_stof` (bv. "propaan"). Connector: bron =
+  `bedrijfsnaam || naamexploitant || bronhouder`.
 - Lege respons = FeatureCollection met `features: []`.
 
 ## Architectuur & data-flow
@@ -59,14 +68,15 @@ POST /api/chat {vraag, locatie?}
 - `src/leefomgevinglab/connectors/externe_veiligheid.py` — **`ExterneVeiligheidConnector(BaseConnector)`**
   - `aandachtsgebieden_op_punt(laag: str, geo_rd: tuple[float,float], max_n: int = 5) -> list[dict]`
     — `get_json` (GET) op de WFS met de params hierboven; parseert `features[]` → per treffer
-    `{bron, evactiviteit, categorie}` (uit `properties`). Lege respons → `[]`.
+    `{bron, maatgevende_stof}` waarbij `bron = bedrijfsnaam || naamexploitant || bronhouder`. Lege respons → `[]`.
   - Geen api-key nodig (open WFS).
 - `src/leefomgevinglab/usecases/vergunningen/externe_veiligheid.py` —
   **`check_aandachtsgebieden(locatie: dict, ev_connector, lagen: dict[str,str]) -> dict | None`**
-  - `resolver.wgs84_naar_rd(lat, lon)` → RD; per (type→laag) `aandachtsgebieden_op_punt`; verzamelt de
-    geraakte types + bronnen; bouwt waarschuwingstekst. Geen enkele treffer → `None`. `ConnectorError`
-    uit een laag-call propageert (de chatbot vangt 'm — onafhankelijke degradatie).
-  - `lagen` = mapping `{"brand": "rev_public:ev_brandaandachtsgebieden", "explosie": …, "gifwolk": …}`.
+  - `resolver.wgs84_naar_rd(lat, lon)` → RD; per (herkomst→laag) `aandachtsgebieden_op_punt`; verzamelt de
+    treffers (herkomst + bron + stof); bouwt waarschuwingstekst. Geen enkele treffer → `None`.
+    `ConnectorError` uit een laag-call propageert (de chatbot vangt 'm — onafhankelijke degradatie).
+  - `lagen` = mapping herkomst→laag, alle explosie:
+    `{"inrichting": "rev_public:ev_explosieaandachtsgebieden", "buisleiding": "rev_public:bl_explosieaandachtsgebieden", "basisnet": "rev_public:bn_explosieaandachtsgebieden"}`.
 - `src/geluidsmeter/api.py` — `/api/chat` bouwt een `ev_fn`-closure over `_ev_connector()` +
   `externe_veiligheid.check_aandachtsgebieden`, doorgegeven aan `beantwoord`.
 - `src/leefomgevinglab/usecases/vergunningen/chatbot.py` — `beantwoord` krijgt `ev_fn=None`;
@@ -82,11 +92,11 @@ Additief; bestaande velden (incl. `regels`, `omgevingsplan`) ongewijzigd:
 {
   "vraag": "...", "antwoord": "...", "bronnen": [...],
   "regels": { ... }, "omgevingsplan": { ... },
-  "externe_veiligheid": {            // NIEUW — null als locatie in géén aandachtsgebied valt / bron down
+  "externe_veiligheid": {            // NIEUW — null als locatie in géén explosieaandachtsgebied valt / bron down
     "aandachtsgebieden": [
-      {"type": "brand", "bron": "Autobedrijf Mekes", "activiteit": "OpslagtankPropaanPropeen…"}
+      {"herkomst": "inrichting", "bron": "Autobedrijf Mekes", "maatgevende_stof": "propaan"}
     ],
-    "waarschuwing": "Let op: deze locatie ligt in een brandaandachtsgebied (bron: Autobedrijf Mekes). Voor een kwetsbaar gebouw gelden hier aanvullende eisen; raadpleeg het bevoegd gezag.",
+    "waarschuwing": "Let op: deze locatie ligt in een explosieaandachtsgebied (inrichting — bron: Autobedrijf Mekes, stof: propaan). Voor een kwetsbaar gebouw gelden hier aanvullende eisen; raadpleeg het bevoegd gezag.",
     "locatie_rd": [151658.2, 418729.5],
     "bron": "REV (rev-portaal.nl)"
   },
@@ -100,9 +110,9 @@ of de REV-WFS faalt. `type` volgt uit de geraakte laag; `bron` uit `bedrijfsnaam
 ### Prompt
 
 `build_prompt` voegt, alleen bij een gevuld `externe_veiligheid`-blok, een waarschuwingsregel toe:
-> "LET OP — externe veiligheid: deze locatie ligt in een <types>aandachtsgebied (bron: <bedrijven>).
-> Voor een kwetsbaar gebouw gelden hier aanvullende eisen. Benoem dit duidelijk; trek geen stellig
-> juridisch besluit; verwijs naar het bevoegd gezag."
+> "LET OP — externe veiligheid: deze locatie ligt in een explosieaandachtsgebied (herkomst: <inrichting/
+> buisleiding/basisnet>, bron: <bronnen>, stof: <stoffen>). Voor een kwetsbaar gebouw gelden hier
+> aanvullende eisen. Benoem dit duidelijk; trek geen stellig juridisch besluit; verwijs naar het bevoegd gezag."
 
 ## Degradatie
 
@@ -130,14 +140,14 @@ RAG-antwoord of de andere drie bronnen laten vallen.
 
 - `ExterneVeiligheidConnector` — mock `get_json`: bouwt de juiste WFS-params incl.
   `cql_filter=INTERSECTS(geometrie, POINT(<rd_x> <rd_y>))` (RD!), `typeNames`, `outputFormat`,
-  `srsName`; parseert `features[]` → `{bron, activiteit, categorie}`; lege FeatureCollection → `[]`.
+  `srsName`; parseert `features[]` → `{bron, maatgevende_stof}` (bron = bedrijfsnaam||naamexploitant||bronhouder); lege FeatureCollection → `[]`.
 - `check_aandachtsgebieden` — mock connector: ≥1 treffer (in één/meer types) → blok met types +
   bronnen + waarschuwingstekst; RD via `resolver.wgs84_naar_rd`; geen treffer → `None`; bron down →
   `ConnectorError` propageert.
 - `beantwoord` — `ev_fn`: met locatie+treffer → prompt bevat de waarschuwing + veld gevuld; geen
   locatie → niet aangeroepen, `null`; REV down → `null`, andere bronnen blijven.
 - Route `/api/chat` — `ev_fn`-closure bedraad; bestaande tests blijven groen (veld optioneel).
-- Eén live smoke-test (open WFS, geen key) op een bekend RD-punt in een brandaandachtsgebied → ≥1 treffer.
+- Eén live smoke-test (open WFS, geen key) op een bekend RD-punt in een explosieaandachtsgebied → ≥1 treffer.
 - Frontend: waarschuwingskaartje (handmatige verificatie).
 
 ## Buiten scope (vervolg)

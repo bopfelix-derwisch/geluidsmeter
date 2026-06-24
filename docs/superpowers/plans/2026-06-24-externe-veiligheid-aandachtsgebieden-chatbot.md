@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** De chatbot waarschuwt bij een geprikte locatie als die in een REV-aandachtsgebied (brand/explosie/gifwolk) valt — relevant voor het bouwen van een kwetsbaar gebouw — via de open REV GeoServer WFS.
+**Goal:** De chatbot waarschuwt bij een geprikte locatie als die in een REV-**explosie**aandachtsgebied valt (van inrichtingen, buisleidingen of basisnet) — relevant voor het bouwen van een kwetsbaar gebouw — via de open REV GeoServer WFS.
 
 **Architecture:** Vierde bron, spiegelt het omgevingsplan-patroon. Een `ExterneVeiligheidConnector` (WFS GetFeature met CQL `INTERSECTS` op een RD-punt), een `externe_veiligheid`-service (verzamelt geraakte types + waarschuwing), additieve wiring in `chatbot.beantwoord`/`build_prompt` en de `/api/chat`-route, en een waarschuwingskaartje in chat.html. Onafhankelijke degradatie + conservatief contract.
 
@@ -13,7 +13,8 @@
 - Tests draaien met: `PYTHONPATH=src python -m pytest` (venv `.venv`; src op het pad).
 - App op poort **8792** (service `geluidsmeter-api`); **na merge herstarten**: `sudo systemctl restart geluidsmeter-api`.
 - **REV WFS = open** (geen key), host `https://rev-portaal.nl/geoserver/wfs`, GeoJSON-output.
-- **SAFETY-KRITISCH:** de CQL-filter-POINT wordt geïnterpreteerd in de **native CRS RD/EPSG:28992**, NIET lon/lat. Een lon/lat-punt geeft stil **0 treffers** (vals-negatief). Locatie dus eerst via `resolver.wgs84_naar_rd` → RD, dan `POINT(rd_x rd_y)`. Geometrie-attribuut heet **`geometrie`** (niet `geom`). Type (brand/explosie/gifwolk) volgt uit de **laagnaam**.
+- **SAFETY-KRITISCH:** de CQL-filter-POINT wordt geïnterpreteerd in de **native CRS RD/EPSG:28992**, NIET lon/lat. Een lon/lat-punt geeft stil **0 treffers** (vals-negatief). Locatie dus eerst via `resolver.wgs84_naar_rd` → RD, dan `POINT(rd_x rd_y)`. Geometrie-attribuut heet **`geometrie`** (niet `geom`).
+- **Scope: alleen EXPLOSIE-aandachtsgebieden**, over álle bronsoorten — `ev_explosieaandachtsgebieden` (inrichting: propaantanks/tankstations), `bl_explosieaandachtsgebieden` (buisleiding), `bn_explosieaandachtsgebieden` (basisnet). Bron-property verschilt per laag: `bedrijfsnaam` (ev) / `naamexploitant` (bl) / `bronhouder` (bn); alle hebben `maatgevende_stof`. Connector: `bron = bedrijfsnaam || naamexploitant || bronhouder`.
 - **Additief / backwards compatible:** zonder `locatie` of zonder treffer verandert het chat-gedrag niet; bestaande tests blijven groen (nieuwe param `ev_fn` default `None`, nieuw veld `externe_veiligheid` mag `null` zijn).
 - **Conservatief contract (harde eis):** `onzekerheid:true`, `disclaimer`, `vangnet` op elk pad; het structurele blok gaat ongewijzigd mee; geen stellig juridisch besluit.
 - **Onafhankelijke degradatie:** een REV-fout mag het RAG-antwoord of de andere drie bronnen nooit laten vallen.
@@ -48,7 +49,7 @@ tests/test_ev_live.py                                             # live smoke (
 - Consumes: `BaseConnector`, `get_json`.
 - Produces: `ExterneVeiligheidConnector(wfs_url, **kwargs)` met
   `aandachtsgebieden_op_punt(laag: str, geo_rd: tuple[float,float], max_n: int = 5) -> list[dict]`
-  → `[{bron, activiteit, categorie}]`. Lege FeatureCollection → `[]`.
+  → `[{bron, maatgevende_stof}]`. Lege FeatureCollection → `[]`.
 
 - [ ] **Step 1: Schrijf de falende test**
 
@@ -73,23 +74,38 @@ def _conn(tmp_path, capture, ret):
 def test_bouwt_wfs_params_met_rd_punt(tmp_path):
     cap = {}
     payload = {"features": [
-        {"properties": {"bedrijfsnaam": "Autobedrijf Mekes",
-                        "evactiviteit": "OpslagtankPropaan", "categorieaandachtsgebied": "vastgesteld"}},
+        {"properties": {"bedrijfsnaam": "Autobedrijf Mekes", "maatgevende_stof": "propaan"}},
     ]}
     c = _conn(tmp_path, cap, payload)
-    out = c.aandachtsgebieden_op_punt("rev_public:ev_brandaandachtsgebieden", RD)
+    out = c.aandachtsgebieden_op_punt("rev_public:ev_explosieaandachtsgebieden", RD)
     assert cap["url"] == WFS
     p = cap["params"]
     assert p["request"] == "GetFeature"
-    assert p["typeNames"] == "rev_public:ev_brandaandachtsgebieden"
+    assert p["typeNames"] == "rev_public:ev_explosieaandachtsgebieden"
     assert p["outputFormat"] == "application/json"
     assert p["cql_filter"] == "INTERSECTS(geometrie, POINT(151658.2 418729.5))"
-    assert out == [{"bron": "Autobedrijf Mekes", "activiteit": "OpslagtankPropaan", "categorie": "vastgesteld"}]
+    assert out == [{"bron": "Autobedrijf Mekes", "maatgevende_stof": "propaan"}]
+
+
+def test_bron_valt_terug_op_naamexploitant_en_bronhouder(tmp_path):
+    # buisleiding (naamexploitant) en basisnet (bronhouder) hebben geen bedrijfsnaam
+    c1 = _conn(tmp_path, {}, {"features": [{"properties": {"naamexploitant": "Gasunie", "maatgevende_stof": "aardgas"}}]})
+    assert c1.aandachtsgebieden_op_punt("rev_public:bl_explosieaandachtsgebieden", RD)[0]["bron"] == "Gasunie"
+    c2 = _conn(tmp_path, {}, {"features": [{"properties": {"bronhouder": "Rijkswaterstaat", "maatgevende_stof": "LPG"}}]})
+    assert c2.aandachtsgebieden_op_punt("rev_public:bn_explosieaandachtsgebieden", RD)[0]["bron"] == "Rijkswaterstaat"
+
+
+def test_maatgevende_stof_genest_object_pakt_chemischeNaam(tmp_path):
+    props = {"bedrijfsnaam": "Bungalowpark Hessenheem",
+             "maatgevende_stof": {"categorieNaam": "klasse 2.1: Brandbaar gas", "chemischeNaam": "propaan"}}
+    c = _conn(tmp_path, {}, {"features": [{"properties": props}]})
+    out = c.aandachtsgebieden_op_punt("rev_public:ev_explosieaandachtsgebieden", RD)
+    assert out[0]["maatgevende_stof"] == "propaan"
 
 
 def test_lege_featurecollection_geen_treffer(tmp_path):
     c = _conn(tmp_path, {}, {"features": []})
-    assert c.aandachtsgebieden_op_punt("rev_public:ev_brandaandachtsgebieden", RD) == []
+    assert c.aandachtsgebieden_op_punt("rev_public:ev_explosieaandachtsgebieden", RD) == []
 
 
 def test_respecteert_max_n(tmp_path):
@@ -108,11 +124,12 @@ Expected: FAIL (`ModuleNotFoundError: ... externe_veiligheid`).
 `src/leefomgevinglab/connectors/externe_veiligheid.py`:
 
 ```python
-"""REV externe veiligheid: aandachtsgebieden op een punt via de open REV WFS.
+"""REV externe veiligheid: explosieaandachtsgebieden op een punt via de open REV WFS.
 
 rev-portaal.nl GeoServer WFS, GeoJSON. Het CQL INTERSECTS-filter werkt op de native CRS
 RD/EPSG:28992 — het punt MOET in RD (lon/lat geeft stil 0 treffers, vals-negatief).
-Geometrie-attribuut: 'geometrie'. Type (brand/explosie/gifwolk) volgt uit de laagnaam.
+Geometrie-attribuut: 'geometrie'. De bron-property verschilt per laag (ev=bedrijfsnaam,
+bl=naamexploitant, bn=bronhouder); maatgevende_stof zit op alle drie.
 Live geverifieerd 2026-06-24; zie spec 2026-06-24-externe-veiligheid-aandachtsgebieden-chatbot-design.md.
 """
 from .base import BaseConnector
@@ -136,10 +153,12 @@ class ExterneVeiligheidConnector(BaseConnector):
         out = []
         for f in (data.get("features") or [])[:max_n]:
             p = f.get("properties") or {}
+            stof = p.get("maatgevende_stof")
+            if isinstance(stof, dict):   # live: {"categorieNaam": ..., "chemischeNaam": "propaan"}
+                stof = stof.get("chemischeNaam") or stof.get("categorieNaam")
             out.append({
-                "bron": p.get("bedrijfsnaam"),
-                "activiteit": p.get("evactiviteit"),
-                "categorie": p.get("categorieaandachtsgebied"),
+                "bron": p.get("bedrijfsnaam") or p.get("naamexploitant") or p.get("bronhouder"),
+                "maatgevende_stof": stof,
             })
         return out
 ```
@@ -182,9 +201,9 @@ from leefomgevinglab.connectors.base import ConnectorError
 from leefomgevinglab.usecases.vergunningen import externe_veiligheid as ev
 
 LOC = {"lat": 51.757, "lon": 5.339}
-LAGEN = {"brand": "rev_public:ev_brandaandachtsgebieden",
-         "explosie": "rev_public:ev_explosieaandachtsgebieden",
-         "gifwolk": "rev_public:ev_gifwolkaandachtsgebieden"}
+LAGEN = {"inrichting": "rev_public:ev_explosieaandachtsgebieden",
+         "buisleiding": "rev_public:bl_explosieaandachtsgebieden",
+         "basisnet": "rev_public:bn_explosieaandachtsgebieden"}
 
 
 class _Conn:
@@ -202,15 +221,17 @@ def _patch_rd(monkeypatch):
     monkeypatch.setattr(ev.resolver, "wgs84_naar_rd", lambda lat, lon: (151658.2, 418729.5))
 
 
-def test_treffer_in_brand_geeft_waarschuwing(monkeypatch):
+def test_treffer_geeft_waarschuwing(monkeypatch):
     _patch_rd(monkeypatch)
-    conn = _Conn(per_laag={"rev_public:ev_brandaandachtsgebieden":
-                           [{"bron": "Autobedrijf Mekes", "activiteit": "OpslagtankPropaan", "categorie": "vastgesteld"}]})
+    conn = _Conn(per_laag={"rev_public:ev_explosieaandachtsgebieden":
+                           [{"bron": "Autobedrijf Mekes", "maatgevende_stof": "propaan"}]})
     out = ev.check_aandachtsgebieden(LOC, conn, LAGEN)
     assert out is not None
-    assert out["aandachtsgebieden"][0]["type"] == "brand"
-    assert out["aandachtsgebieden"][0]["bron"] == "Autobedrijf Mekes"
-    assert "brandaandachtsgebied" in out["waarschuwing"]
+    a = out["aandachtsgebieden"][0]
+    assert a["herkomst"] == "inrichting"
+    assert a["bron"] == "Autobedrijf Mekes"
+    assert a["maatgevende_stof"] == "propaan"
+    assert "explosieaandachtsgebied" in out["waarschuwing"]
     assert "Autobedrijf Mekes" in out["waarschuwing"]
     assert "kwetsbaar gebouw" in out["waarschuwing"]
     assert out["locatie_rd"] == [151658.2, 418729.5]
@@ -222,19 +243,19 @@ def test_geen_treffer_geeft_none(monkeypatch):
     assert ev.check_aandachtsgebieden(LOC, _Conn(), LAGEN) is None
 
 
-def test_meerdere_types(monkeypatch):
+def test_meerdere_herkomsten(monkeypatch):
     _patch_rd(monkeypatch)
     conn = _Conn(per_laag={
-        "rev_public:ev_brandaandachtsgebieden": [{"bron": "A"}],
-        "rev_public:ev_gifwolkaandachtsgebieden": [{"bron": "B"}]})
+        "rev_public:ev_explosieaandachtsgebieden": [{"bron": "A", "maatgevende_stof": "propaan"}],
+        "rev_public:bl_explosieaandachtsgebieden": [{"bron": "Gasunie", "maatgevende_stof": "aardgas"}]})
     out = ev.check_aandachtsgebieden(LOC, conn, LAGEN)
-    types = {a["type"] for a in out["aandachtsgebieden"]}
-    assert types == {"brand", "gifwolk"}
+    herkomsten = {a["herkomst"] for a in out["aandachtsgebieden"]}
+    assert herkomsten == {"inrichting", "buisleiding"}
 
 
 def test_laag_fout_propageert(monkeypatch):
     _patch_rd(monkeypatch)
-    conn = _Conn(error_laag="rev_public:ev_explosieaandachtsgebieden")
+    conn = _Conn(error_laag="rev_public:bl_explosieaandachtsgebieden")
     with pytest.raises(ConnectorError):
         ev.check_aandachtsgebieden(LOC, conn, LAGEN)
 ```
@@ -249,35 +270,37 @@ Expected: FAIL (`ModuleNotFoundError`).
 `src/leefomgevinglab/usecases/vergunningen/externe_veiligheid.py`:
 
 ```python
-"""UC: externe-veiligheid-waarschuwing — REV-aandachtsgebieden op een punt.
+"""UC: externe-veiligheid-waarschuwing — REV-EXPLOSIEaandachtsgebieden op een punt.
 
-Per type (brand/explosie/gifwolk) een laag-query; verzamelt de geraakte types + bronnen en
-bouwt een conservatieve waarschuwing. Een laag-fout (ConnectorError) propageert: liever geen blok
-dan een onvolledige 'veilig'-indruk.
+Per herkomst (inrichting/buisleiding/basisnet) een laag-query op de explosie-laag; verzamelt de
+treffers (herkomst + bron + stof) en bouwt een conservatieve waarschuwing. Een laag-fout
+(ConnectorError) propageert: liever geen blok dan een onvolledige 'veilig'-indruk.
 """
 from leefomgevinglab.usecases.vergunningen import resolver
 
 BRON = "REV (rev-portaal.nl)"
-_TYPE_LABEL = {"brand": "brandaandachtsgebied",
-               "explosie": "explosieaandachtsgebied",
-               "gifwolk": "gifwolkaandachtsgebied"}
 
 
 def check_aandachtsgebieden(locatie: dict, ev_connector, lagen: dict, max_n: int = 5) -> dict | None:
     rd = resolver.wgs84_naar_rd(locatie["lat"], locatie["lon"])
     aandachtsgebieden = []
-    for typ, laag in lagen.items():
+    for herkomst, laag in lagen.items():
         for t in ev_connector.aandachtsgebieden_op_punt(laag, rd, max_n):   # ConnectorError propageert
-            aandachtsgebieden.append({"type": typ, "bron": t.get("bron"), "activiteit": t.get("activiteit")})
+            aandachtsgebieden.append({"herkomst": herkomst, "bron": t.get("bron"),
+                                      "maatgevende_stof": t.get("maatgevende_stof")})
     if not aandachtsgebieden:
         return None
-    types = sorted({a["type"] for a in aandachtsgebieden})
-    type_tekst = " en ".join(_TYPE_LABEL.get(t, t) for t in types)
+    herkomsten = ", ".join(sorted({a["herkomst"] for a in aandachtsgebieden}))
     bronnen = sorted({a["bron"] for a in aandachtsgebieden if a.get("bron")})
-    bron_tekst = (" (bron: " + ", ".join(bronnen) + ")") if bronnen else ""
+    stoffen = sorted({a["maatgevende_stof"] for a in aandachtsgebieden if a.get("maatgevende_stof")})
+    detail = "; ".join(x for x in [
+        "herkomst: " + herkomsten,
+        ("bron: " + ", ".join(bronnen)) if bronnen else "",
+        ("stof: " + ", ".join(stoffen)) if stoffen else "",
+    ] if x)
     waarschuwing = (
-        f"Let op: deze locatie ligt in een {type_tekst}{bron_tekst}. Voor een kwetsbaar gebouw "
-        "gelden hier aanvullende eisen; raadpleeg het bevoegd gezag."
+        f"Let op: deze locatie ligt in een explosieaandachtsgebied ({detail}). Voor een kwetsbaar "
+        "gebouw gelden hier aanvullende eisen; raadpleeg het bevoegd gezag."
     )
     return {
         "aandachtsgebieden": aandachtsgebieden,
@@ -323,9 +346,10 @@ Voeg toe aan `tests/test_chatbot.py` (helpers `_Store`, `_Resp`, `_embed_ok`, `L
 
 ```python
 _EV_OK = {
-    "aandachtsgebieden": [{"type": "brand", "bron": "Autobedrijf Mekes", "activiteit": "OpslagtankPropaan"}],
-    "waarschuwing": "Let op: deze locatie ligt in een brandaandachtsgebied (bron: Autobedrijf Mekes). "
-                    "Voor een kwetsbaar gebouw gelden hier aanvullende eisen; raadpleeg het bevoegd gezag.",
+    "aandachtsgebieden": [{"herkomst": "inrichting", "bron": "Autobedrijf Mekes", "maatgevende_stof": "propaan"}],
+    "waarschuwing": "Let op: deze locatie ligt in een explosieaandachtsgebied (herkomst: inrichting; "
+                    "bron: Autobedrijf Mekes; stof: propaan). Voor een kwetsbaar gebouw gelden hier "
+                    "aanvullende eisen; raadpleeg het bevoegd gezag.",
     "locatie_rd": [151658.2, 418729.5], "bron": "REV (rev-portaal.nl)",
 }
 
@@ -333,12 +357,12 @@ _EV_OK = {
 def test_build_prompt_met_ev_voegt_waarschuwing_toe():
     p = chatbot.build_prompt("mag ik bouwen?", [{"text": "c", "url": "u1"}], None, None, _EV_OK)
     assert "externe veiligheid" in p.lower()
-    assert "brandaandachtsgebied" in p
+    assert "explosieaandachtsgebied" in p
 
 
 def test_build_prompt_zonder_ev_geen_waarschuwing():
     p = chatbot.build_prompt("iets", [{"text": "c", "url": "u1"}])
-    assert "brandaandachtsgebied" not in p
+    assert "explosieaandachtsgebied" not in p
 
 
 def test_beantwoord_met_ev(monkeypatch):
@@ -353,7 +377,7 @@ def test_beantwoord_met_ev(monkeypatch):
     out = chatbot.beantwoord("mag ik bouwen?", store, _embed_ok, llm_base_url="http://x/v1", model="qwen",
                              locatie=LOC, ev_fn=lambda loc: _EV_OK)
     assert out["externe_veiligheid"] == _EV_OK
-    assert "brandaandachtsgebied" in captured["prompt"]
+    assert "explosieaandachtsgebied" in captured["prompt"]
     assert out["beschikbaar"] is True
 
 
@@ -471,14 +495,14 @@ Voeg in `core/config.yaml` onder `leefomgevinglab:` (naast `ozon:`) toe:
 
 ```yaml
   externe_veiligheid:
-    # REV-aandachtsgebieden via de open REV GeoServer WFS (rev-portaal.nl). CQL INTERSECTS op
-    # RD/EPSG:28992-punt (lon/lat geeft stil 0 treffers). Type volgt uit de laagnaam.
+    # REV-EXPLOSIEaandachtsgebieden via de open REV GeoServer WFS (rev-portaal.nl). CQL INTERSECTS op
+    # RD/EPSG:28992-punt (lon/lat geeft stil 0 treffers). lagen = herkomst -> explosie-laag.
     wfs_url: "https://rev-portaal.nl/geoserver/wfs"
     max_features: 5
     lagen:
-      brand: "rev_public:ev_brandaandachtsgebieden"
-      explosie: "rev_public:ev_explosieaandachtsgebieden"
-      gifwolk: "rev_public:ev_gifwolkaandachtsgebieden"
+      inrichting: "rev_public:ev_explosieaandachtsgebieden"   # propaantanks, tankstations, ...
+      buisleiding: "rev_public:bl_explosieaandachtsgebieden"
+      basisnet: "rev_public:bn_explosieaandachtsgebieden"
 ```
 
 - [ ] **Step 2: Schrijf de falende route-wiring-test**
@@ -490,7 +514,7 @@ def test_chat_locatie_geeft_externe_veiligheid_door(monkeypatch):
     client = _client(monkeypatch)
     api._config["leefomgevinglab"]["externe_veiligheid"] = {
         "wfs_url": "https://x/wfs", "max_features": 5,
-        "lagen": {"brand": "rev_public:ev_brandaandachtsgebieden"}}
+        "lagen": {"inrichting": "rev_public:ev_explosieaandachtsgebieden"}}
 
     class _Store:
         def search(self, qv, k): return [{"text": "t", "url": "u", "score": 0.9}]
@@ -503,8 +527,8 @@ def test_chat_locatie_geeft_externe_veiligheid_door(monkeypatch):
     def fake_check(locatie, ev_connector, lagen, max_n=5):
         captured["locatie"] = locatie
         captured["lagen"] = lagen
-        return {"aandachtsgebieden": [{"type": "brand", "bron": "X"}], "waarschuwing": "Let op",
-                "locatie_rd": [1.0, 2.0], "bron": "REV (rev-portaal.nl)"}
+        return {"aandachtsgebieden": [{"herkomst": "inrichting", "bron": "X", "maatgevende_stof": "propaan"}],
+                "waarschuwing": "Let op", "locatie_rd": [1.0, 2.0], "bron": "REV (rev-portaal.nl)"}
 
     monkeypatch.setattr(api.externe_veiligheid_mod, "check_aandachtsgebieden", fake_check)
 
@@ -518,8 +542,8 @@ def test_chat_locatie_geeft_externe_veiligheid_door(monkeypatch):
     r = client.post("/api/chat", json={"vraag": "mag ik bouwen?", "locatie": {"lat": 51.0, "lon": 5.0}})
     assert r.status_code == 200
     assert captured["locatie"] == {"lat": 51.0, "lon": 5.0}
-    assert "brand" in captured["lagen"]
-    assert r.json()["externe_veiligheid"]["aandachtsgebieden"][0]["type"] == "brand"
+    assert "inrichting" in captured["lagen"]
+    assert r.json()["externe_veiligheid"]["aandachtsgebieden"][0]["herkomst"] == "inrichting"
 ```
 
 - [ ] **Step 3: Run om te zien dat hij faalt**
@@ -581,12 +605,13 @@ pytestmark = pytest.mark.skipif(not os.environ.get("DSO_API_KEY"),
 WFS = "https://rev-portaal.nl/geoserver/wfs"
 
 
-def test_live_brandaandachtsgebied_op_rd_punt(tmp_path):
+def test_live_explosieaandachtsgebied_op_rd_punt(tmp_path):
     from leefomgevinglab.connectors.externe_veiligheid import ExterneVeiligheidConnector
     c = ExterneVeiligheidConnector(wfs_url=WFS, cache_dir=str(tmp_path))
-    # RD-punt binnen een bekend brandaandachtsgebied (geverifieerd 2026-06-24)
-    treffers = c.aandachtsgebieden_op_punt("rev_public:ev_brandaandachtsgebieden", (151658.2, 418729.5))
+    # RD-punt binnen een bekend explosieaandachtsgebied (Bungalowpark Hessenheem, propaan; geverifieerd 2026-06-24)
+    treffers = c.aandachtsgebieden_op_punt("rev_public:ev_explosieaandachtsgebieden", (232003.1, 473064.6))
     assert len(treffers) >= 1
+    assert treffers[0]["maatgevende_stof"] == "propaan"
 ```
 
 - [ ] **Step 7: Volledige suite (regressie) + commit**
@@ -648,8 +673,8 @@ sudo systemctl restart geluidsmeter-api
 Open `/chatbot`, prik een locatie in een bekend aandachtsgebied, stel een vraag, en controleer:
 1. Een rood/amber **"⚠️ Externe veiligheid"**-kaartje verschijnt met de waarschuwing + bron.
 2. Locatie buiten elk aandachtsgebied → geen kaartje.
-3. Controleer ook met curl (RD-punt-equivalent ~ lat 51.757, lon 5.339 ligt in een brandaandachtsgebied):
-   `curl -sS -m150 -X POST http://localhost:8792/api/chat -H "Content-Type: application/json" -d '{"vraag":"mag ik een woning bouwen?","locatie":{"lat":51.757,"lon":5.339}}'`
+3. Controleer ook met curl (lat 52.24025, lon 6.5146 ligt in een explosieaandachtsgebied — Bungalowpark Hessenheem, propaan):
+   `curl -sS -m150 -X POST http://localhost:8792/api/chat -H "Content-Type: application/json" -d '{"vraag":"mag ik een woning bouwen?","locatie":{"lat":52.24025,"lon":6.5146}}'`
    → veld `externe_veiligheid` gevuld (of `null`). Noteer de uitkomst in het taakrapport.
 
 - [ ] **Step 3: Commit**
@@ -665,7 +690,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ## Out of scope (vervolg)
 
-- Transport-/buisleiding-aandachtsgebieden (`bn_*`/`bl_*`) standaard aan (nu config-uitbreidbaar).
+- Brand-/gifwolk-aandachtsgebieden en de civiel-/vuurwerk-explosievarianten (nu config-uitbreidbaar; default = alleen explosie ev/bl/bn).
 - Kwetsbaarheidscategorieën (`veiligheidszones*`) + juridische eisen per categorie.
 - Intentie-detectie "kwetsbaar gebouw"; ketenversnelling; multi-turn.
 
@@ -677,6 +702,6 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
   (`try/except ConnectorError`) + tests; conservatief contract → prompt-instructie + ongewijzigd blok.
 - **Placeholders:** geen TBD; alle code-stappen compleet. De safety-kritische RD-eis staat in de
   connector-code + Global Constraints.
-- **Type-consistentie:** `aandachtsgebieden_op_punt(laag, geo_rd, max_n) -> [{bron,activiteit,categorie}]`,
+- **Type-consistentie:** `aandachtsgebieden_op_punt(laag, geo_rd, max_n) -> [{bron,maatgevende_stof}]`,
   `check_aandachtsgebieden(locatie, ev_connector, lagen, max_n) -> dict|None`, `beantwoord(..., ev_fn)`,
   `build_prompt(..., externe_veiligheid)`, en het respons-veld `externe_veiligheid` consistent over Task 1→5.
