@@ -158,6 +158,11 @@ def roadmap_page():
     return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "roadmap.html").read_text()
 
 
+@app.get("/kwaliteit", response_class=HTMLResponse)
+def kwaliteit_page():
+    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "kwaliteit.html").read_text()
+
+
 @app.get("/demo", response_class=HTMLResponse)
 def demo_page():
     return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "demo.html").read_text()
