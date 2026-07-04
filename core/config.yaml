@@ -92,6 +92,23 @@ leefomgevinglab:
       inrichting: "rev_public:ev_explosieaandachtsgebieden"   # propaantanks, tankstations, ...
       buisleiding: "rev_public:bl_explosieaandachtsgebieden"
       basisnet: "rev_public:bn_explosieaandachtsgebieden"
+  wfs_kwaliteit:
+    # Datakwaliteit-scan op de open REV WFS (rev-portaal.nl). 10 lagen: 3 aandachtsgebied-types
+    # x 3 bronsoorten (ev/bn/bl) + de activiteiten-laag. Sample per laag; totaal via resultType=hits.
+    wfs_url: "https://rev-portaal.nl/geoserver/wfs"
+    sample_n: 300
+    cache_ttl_s: 86400     # 1 dag; ?refresh=1 forceert een verse scan
+    lagen:
+      - "rev_public:ev_brandaandachtsgebieden"
+      - "rev_public:ev_explosieaandachtsgebieden"
+      - "rev_public:ev_gifwolkaandachtsgebieden"
+      - "rev_public:bn_brandaandachtsgebieden"
+      - "rev_public:bn_explosieaandachtsgebieden"
+      - "rev_public:bn_gifwolkaandachtsgebieden"
+      - "rev_public:bl_brandaandachtsgebieden"
+      - "rev_public:bl_explosieaandachtsgebieden"
+      - "rev_public:bl_gifwolkaandachtsgebieden"
+      - "rev_public:ev_activiteiten"
   ozon:
     # DSO Ozon Omgevingsdocument Presenteren v8 (pre-productie; x-api-key; RD via Content-Crs OGC-URI).
     base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/omgevingsdocumenten/api/presenteren/v8"

@@ -31,6 +31,7 @@ from leefomgevinglab.usecases.vergunningen import resolver as vergunningen_resol
 from leefomgevinglab.usecases.vergunningen import omgevingsplan as omgevingsplan_mod
 from leefomgevinglab.usecases.vergunningen import externe_veiligheid as externe_veiligheid_mod
 from leefomgevinglab.connectors.externe_veiligheid import ExterneVeiligheidConnector
+from leefomgevinglab.usecases import wfs_kwaliteit as wfs_kwaliteit_mod
 from leefomgevinglab.connectors.ozon import OzonConnector
 from functools import partial
 from leefomgevinglab.rag.embed import embed_texts
@@ -161,6 +162,30 @@ def roadmap_page():
 @app.get("/kwaliteit", response_class=HTMLResponse)
 def kwaliteit_page():
     return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "kwaliteit.html").read_text()
+
+
+@app.get("/wfs-kwaliteit", response_class=HTMLResponse)
+def wfs_kwaliteit_page():
+    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "wfs-kwaliteit.html").read_text()
+
+
+@app.get("/api/wfs-kwaliteit")
+def api_wfs_kwaliteit(refresh: int = 0):
+    ll = _config.get("leefomgevinglab", {})
+    cfg = ll.get("wfs_kwaliteit", {})
+    cache_dir = Path(ll.get("cache_dir", "/tmp/llab_cache"))
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache = cache_dir / "wfs_kwaliteit.json"
+    ttl = cfg.get("cache_ttl_s", 86400)
+    if not refresh and cache.exists() and (datetime.now(timezone.utc).timestamp() - cache.stat().st_mtime) < ttl:
+        data = json.loads(cache.read_text())
+        data["uit_cache"] = True
+        return data
+    data = wfs_kwaliteit_mod.scan_lagen(
+        cfg.get("wfs_url", ""), cfg.get("lagen", []), sample_n=cfg.get("sample_n", 300))
+    cache.write_text(json.dumps(data))
+    data["uit_cache"] = False
+    return data
 
 
 @app.get("/demo", response_class=HTMLResponse)
