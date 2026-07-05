@@ -187,7 +187,9 @@ def api_wfs_kwaliteit(refresh: int = 0, bronhouder: str = "", activiteit: str = 
         return data
     lagen = cfg.get("lagen") or wfs_kwaliteit_mod.lagen_uit_capabilities(
         wfs_url, namespace=cfg.get("namespace", "rev_public:"))
-    data = wfs_kwaliteit_mod.scan_lagen(wfs_url, lagen, sample_n=cfg.get("sample_n", 300), cql=cql)
+    imev = cfg.get("imev_verplichte_velden") or wfs_kwaliteit_mod.IMEV_VERPLICHTE_VELDEN
+    data = wfs_kwaliteit_mod.scan_lagen(wfs_url, lagen, sample_n=cfg.get("sample_n", 300),
+                                        cql=cql, imev_velden=imev)
     data["filter"] = {"bronhouder": bronhouder, "activiteit": activiteit}
     cache.write_text(json.dumps(data))
     data["uit_cache"] = False

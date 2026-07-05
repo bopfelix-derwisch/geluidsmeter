@@ -43,6 +43,27 @@ def test_metrics_verzamelt_facetten():
     assert bronh == {"OD Regio"} and act == {"OpslagPropaan"}
 
 
+def test_imev_conformiteit_telt_ontbrekende_verplichte_velden():
+    feats = [
+        _feat({"identificatie": "1", "bronhoudercode": "b", "begin_geldigheid": "2020", "tijdstip_registratie": "2020"}, _VALID),
+        _feat({"identificatie": "2", "begin_geldigheid": "2020"}, _VALID),   # mist bronhoudercode + tijdstip -> 2
+        _feat({"identificatie": "3", "bronhoudercode": "b", "begin_geldigheid": "2020", "tijdstip_registratie": "2020"}, None),  # mist geometrie -> 1
+    ]
+    m = _metrics(feats)
+    assert m["imev_ontbrekend"] == 3
+    assert m["imev_incompleet"] == 2
+    assert m["imev_incompleet_pct"] == round(200 / 3, 1)
+    assert m["imev_veld_null"] == {"bronhoudercode": 1, "tijdstip_registratie": 1}
+    assert m["imev_velden_niet_in_schema"] == []
+
+
+def test_imev_verplicht_veld_niet_in_schema():
+    m = wk._metrics_uit_sample([_feat({"identificatie": "1"}, _VALID)], NU, set(), set(),
+                               imev_velden=("identificatie", "bronhoudercode"), geometrie_verplicht=False)
+    assert m["imev_velden_niet_in_schema"] == ["bronhoudercode"]
+    assert m["imev_veld_null"] == {"bronhoudercode": 1}
+
+
 def test_bouw_cql():
     assert wk.bouw_cql() is None
     assert wk.bouw_cql(bronhouder="OD X") == "bronhouder='OD X'"

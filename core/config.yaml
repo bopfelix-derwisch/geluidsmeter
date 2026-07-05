@@ -101,6 +101,12 @@ leefomgevinglab:
     sample_n: 300
     cache_ttl_s: 86400     # 1 dag per filter-combinatie; ?refresh=1 forceert een verse scan
     # lagen: []  # leeg = alle lagen dynamisch uit GetCapabilities
+    # IMEV 3.0.2 base-verplichte attributen (ExterneVeiligheidsobject), gemapt op WFS-veldnamen.
+    imev_verplichte_velden:
+      - "identificatie"
+      - "bronhoudercode"
+      - "begin_geldigheid"
+      - "tijdstip_registratie"
   ozon:
     # DSO Ozon Omgevingsdocument Presenteren v8 (pre-productie; x-api-key; RD via Content-Crs OGC-URI).
     base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/omgevingsdocumenten/api/presenteren/v8"
