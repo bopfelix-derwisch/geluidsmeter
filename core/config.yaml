@@ -93,22 +93,14 @@ leefomgevinglab:
       buisleiding: "rev_public:bl_explosieaandachtsgebieden"
       basisnet: "rev_public:bn_explosieaandachtsgebieden"
   wfs_kwaliteit:
-    # Datakwaliteit-scan op de open REV WFS (rev-portaal.nl). 10 lagen: 3 aandachtsgebied-types
-    # x 3 bronsoorten (ev/bn/bl) + de activiteiten-laag. Sample per laag; totaal via resultType=hits.
+    # Datakwaliteit-scan op de open REV WFS (rev-portaal.nl). Álle lagen worden dynamisch ontdekt
+    # via GetCapabilities (namespace 'rev_public:'). Totaal exact via resultType=hits (met optioneel
+    # CQL-filter per bronhouder/activiteit); geometrie-validiteit + null-rates uit een sample per laag.
     wfs_url: "https://rev-portaal.nl/geoserver/wfs"
+    namespace: "rev_public:"
     sample_n: 300
-    cache_ttl_s: 86400     # 1 dag; ?refresh=1 forceert een verse scan
-    lagen:
-      - "rev_public:ev_brandaandachtsgebieden"
-      - "rev_public:ev_explosieaandachtsgebieden"
-      - "rev_public:ev_gifwolkaandachtsgebieden"
-      - "rev_public:bn_brandaandachtsgebieden"
-      - "rev_public:bn_explosieaandachtsgebieden"
-      - "rev_public:bn_gifwolkaandachtsgebieden"
-      - "rev_public:bl_brandaandachtsgebieden"
-      - "rev_public:bl_explosieaandachtsgebieden"
-      - "rev_public:bl_gifwolkaandachtsgebieden"
-      - "rev_public:ev_activiteiten"
+    cache_ttl_s: 86400     # 1 dag per filter-combinatie; ?refresh=1 forceert een verse scan
+    # lagen: []  # leeg = alle lagen dynamisch uit GetCapabilities
   ozon:
     # DSO Ozon Omgevingsdocument Presenteren v8 (pre-productie; x-api-key; RD via Content-Crs OGC-URI).
     base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/omgevingsdocumenten/api/presenteren/v8"

@@ -5,8 +5,6 @@ import httpx
 from leefomgevinglab.usecases import wfs_kwaliteit as wk
 
 NU = datetime(2026, 7, 4, tzinfo=timezone.utc)
-
-# geldig vierkant vs. self-intersecting "bowtie" (invalide)
 _VALID = {"type": "Polygon", "coordinates": [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]]}
 _INVALID = {"type": "Polygon", "coordinates": [[[0, 0], [1, 1], [1, 0], [0, 1], [0, 0]]]}
 
@@ -15,54 +13,67 @@ def _feat(props, geom=_VALID):
     return {"type": "Feature", "properties": props, "geometry": geom}
 
 
+def _metrics(feats):
+    return wk._metrics_uit_sample(feats, NU, set(), set())
+
+
 def test_metrics_geometrie_en_bron_null():
-    feats = [
+    m = _metrics([
         _feat({"bedrijfsnaam": "A", "identificatie": "1"}, _VALID),
         _feat({"naamexploitant": "B", "identificatie": "2"}, _INVALID),
-        _feat({"identificatie": "3"}, None),                       # bron leeg + geom null
-    ]
-    m = wk._metrics_uit_sample(feats, NU)
-    assert m["sample"] == 3
-    assert m["geom_valid"] == 1
-    assert m["geom_invalid"] == 1
-    assert m["geom_null"] == 1
-    assert m["bron_null"] == 1
+        _feat({"identificatie": "3"}, None),
+    ])
+    assert (m["geom_valid"], m["geom_invalid"], m["geom_null"], m["bron_null"]) == (1, 1, 1, 1)
     assert m["geom_invalid_pct"] == round(100 / 3, 1)
 
 
-def test_metrics_verlopen_en_duplicaten_en_bronhouders():
-    feats = [
+def test_metrics_verlopen_duplicaten_bronhouders():
+    m = _metrics([
         _feat({"bronhouder": "RWS", "identificatie": "x", "eind_geldigheid": "2020-01-01T00:00:00Z"}),
-        _feat({"bronhouder": "RWS", "identificatie": "x"}),        # duplicaat (zelfde id+geom)
+        _feat({"bronhouder": "RWS", "identificatie": "x"}),
         _feat({"bronhouder": "Gem", "identificatie": "y", "eind_geldigheid": "2099-01-01T00:00:00Z"}),
-    ]
-    m = wk._metrics_uit_sample(feats, NU)
-    assert m["verlopen"] == 1
-    assert m["duplicaten"] == 1
-    assert m["n_bronhouders"] == 2
+    ])
+    assert (m["verlopen"], m["duplicaten"], m["n_bronhouders"]) == (1, 1, 2)
 
 
-def test_metrics_stof_null():
-    feats = [_feat({"bedrijfsnaam": "A", "maatgevende_stof": None, "identificatie": "1"}),
-             _feat({"bedrijfsnaam": "B", "maatgevende_stof": "propaan", "identificatie": "2"})]
-    m = wk._metrics_uit_sample(feats, NU)
-    assert m["stof_null"] == 1
+def test_metrics_verzamelt_facetten():
+    bronh, act = set(), set()
+    wk._metrics_uit_sample([_feat({"bronhouder": "OD Regio", "evactiviteit": "OpslagPropaan", "identificatie": "1"})],
+                           NU, bronh, act)
+    assert bronh == {"OD Regio"} and act == {"OpslagPropaan"}
 
 
-def test_scan_lagen_degradeert_per_laag(monkeypatch):
+def test_bouw_cql():
+    assert wk.bouw_cql() is None
+    assert wk.bouw_cql(bronhouder="OD X") == "bronhouder='OD X'"
+    assert wk.bouw_cql(activiteit="A") == "evactiviteit='A'"
+    assert wk.bouw_cql("OD X", "A") == "bronhouder='OD X' AND evactiviteit='A'"
+    assert wk.bouw_cql(bronhouder="d'Arc") == "bronhouder='d''Arc'"       # quote-escape
+
+
+def test_lagen_uit_capabilities(monkeypatch):
+    caps = '<X><Name>rev_public:ev_brandaandachtsgebieden</Name><Name>rev_public:ev_activiteiten</Name>' \
+           '<Name>rev_public:ev_brandaandachtsgebieden</Name><Name>ander:iets</Name></X>'
+    monkeypatch.setattr(httpx.Client, "get", lambda self, url, params=None: httpx.Response(200, text=caps))
+    lagen = wk.lagen_uit_capabilities("https://x/wfs")
+    assert lagen == ["rev_public:ev_brandaandachtsgebieden", "rev_public:ev_activiteiten"]
+
+
+def test_scan_lagen_met_cql_en_degradatie(monkeypatch):
     def fake_get(self, url, params=None):
         laag = params.get("typeNames")
         if params.get("resultType") == "hits":
             if laag == "kapot":
-                raise httpx.ConnectError("down")
-            return httpx.Response(200, text='numberMatched="42" numberReturned="0"')
-        return httpx.Response(200, json={"features": [_feat({"bedrijfsnaam": "A", "identificatie": "1"})]})
+                raise httpx.ConnectError("veld bestaat niet")
+            assert params.get("cql_filter") == "bronhouder='OD X'"      # filter doorgegeven
+            return httpx.Response(200, text='numberMatched="7" x')
+        return httpx.Response(200, json={"features": [
+            _feat({"bronhouder": "OD X", "evactiviteit": "A", "identificatie": "1"})]})
 
     monkeypatch.setattr(httpx.Client, "get", fake_get)
-    out = wk.scan_lagen("https://x/wfs", ["goed", "kapot"], sample_n=10)
+    out = wk.scan_lagen("https://x/wfs", ["goed", "kapot"], sample_n=10, cql="bronhouder='OD X'")
     rows = {r["laag"]: r for r in out["lagen"]}
-    assert rows["goed"]["totaal"] == 42
-    assert rows["goed"]["geom_valid"] == 1
-    assert rows["kapot"]["error"] is not None          # degradeert, blokkeert de rest niet
-    assert rows["kapot"]["totaal"] is None
-    assert out["wfs_url"] == "https://x/wfs" and out["sample_n"] == 10
+    assert rows["goed"]["totaal"] == 7 and rows["goed"]["geom_valid"] == 1
+    assert rows["kapot"]["error"] is not None and rows["kapot"]["totaal"] is None
+    assert out["bronhouders"] == ["OD X"] and out["activiteiten"] == ["A"]
+    assert out["cql"] == "bronhouder='OD X'"

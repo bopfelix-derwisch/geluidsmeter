@@ -10,127 +10,168 @@
       --accent:#2ecc8f; --accent2:#26a69a; --text:#e0e6ed; --muted:#8aa0b2; --dim:#5b7385; --warn:#ffb74d; }
     body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; line-height:1.6; }
     a { color:inherit; text-decoration:none; }
-    header { background:var(--panel); border-bottom:1px solid var(--border); padding:12px 20px;
-      display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+    header { background:var(--panel); border-bottom:1px solid var(--border); padding:12px 20px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
     header .mark { width:22px; height:22px; border-radius:6px; background:linear-gradient(135deg,var(--accent),var(--accent2)); flex:none; }
     header h1 { font-size:15px; color:var(--accent); font-weight:700; }
     .badge { font-size:10px; padding:2px 9px; border-radius:10px; border:1px solid var(--border); color:var(--muted); }
     header nav { margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
     header nav a { font-size:12px; color:var(--muted); padding:4px 10px; border-radius:12px; border:1px solid transparent; }
     header nav a:hover { border-color:var(--border); color:var(--accent); }
-    .wrap { max-width:1140px; margin:0 auto; padding:0 20px; }
-    .hero { padding:40px 0 22px; border-bottom:1px solid var(--border); }
-    .hero h2 { font-size:26px; font-weight:800; color:#eafff6; margin-bottom:10px; }
-    .hero p { color:var(--muted); max-width:860px; font-size:14px; }
-    .note { margin-top:16px; padding:10px 14px; border-radius:8px; background:rgba(255,183,77,.08);
-      border:1px solid #5a4520; color:#e8c98a; font-size:12.5px; }
-    .bar { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:20px 0 8px; }
-    button { padding:7px 14px; border-radius:8px; border:none; background:var(--accent); color:#042; font-weight:700; cursor:pointer; font-size:13px; }
+    .wrap { max-width:1180px; margin:0 auto; padding:0 20px; }
+    .hero { padding:34px 0 18px; border-bottom:1px solid var(--border); }
+    .hero h2 { font-size:26px; font-weight:800; color:#eafff6; margin-bottom:8px; }
+    .hero p { color:var(--muted); max-width:880px; font-size:14px; }
+    .note { margin-top:14px; padding:10px 14px; border-radius:8px; background:rgba(255,183,77,.08); border:1px solid #5a4520; color:#e8c98a; font-size:12.5px; }
+    .controls { display:flex; flex-wrap:wrap; gap:16px 22px; align-items:flex-end; margin:20px 0 6px; }
+    .ctl label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--dim); margin-bottom:4px; }
+    select { background:var(--panel2); color:var(--text); border:1px solid var(--border); border-radius:8px; padding:7px 10px; font-size:13px; min-width:190px; }
+    button { padding:8px 14px; border-radius:8px; border:none; background:var(--accent); color:#042; font-weight:700; cursor:pointer; font-size:13px; }
     button:disabled { opacity:.5; cursor:default; }
-    .meta { font-size:12px; color:var(--dim); }
+    .meta { font-size:12px; color:var(--dim); margin:8px 0; }
+    .legend { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:8px; margin:12px 0 6px; }
+    .lg { background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:9px 12px; font-size:12px; }
+    .lg.sel { border-color:var(--accent); background:#0c1f18; }
+    .lg b { color:#cfe9df; font-size:12.5px; }
+    .lg span { color:var(--muted); }
     table { width:100%; border-collapse:collapse; font-size:13px; margin:14px 0 40px; }
-    th, td { border:1px solid var(--border); padding:7px 9px; text-align:right; vertical-align:middle; }
-    th { background:var(--panel); color:#b0c4ce; font-size:11px; text-transform:uppercase; letter-spacing:.4px; }
-    td.laag { text-align:left; color:#eafff6; font-family:ui-monospace,monospace; font-size:12px; }
+    th, td { border:1px solid var(--border); padding:6px 9px; text-align:right; vertical-align:middle; }
+    th { background:var(--panel); color:#b0c4ce; font-size:11px; text-transform:uppercase; letter-spacing:.3px; cursor:default; }
+    td.laag, th.laag { text-align:left; }
+    td.laag { color:#eafff6; font-family:ui-monospace,monospace; font-size:12px; }
     tr:nth-child(even) td { background:var(--panel2); }
+    th.sel, td.sel { background:#0c1f18 !important; }
     .pill { display:inline-block; padding:1px 8px; border-radius:10px; font-weight:700; font-size:12px; }
-    .ok   { background:#11261c; color:#6fe0a8; }
-    .mid  { background:#2c2410; color:#e8c98a; }
-    .bad  { background:#2a1414; color:#ff9a8a; }
+    .ok{background:#11261c;color:#6fe0a8;} .mid{background:#2c2410;color:#e8c98a;} .bad{background:#2a1414;color:#ff9a8a;}
     .muted { color:var(--dim); }
-    footer { padding:24px 0 48px; color:var(--dim); font-size:12px; }
+    footer { padding:22px 0 48px; color:var(--dim); font-size:12px; }
   </style>
 </head>
 <body>
   <header>
-    <div class="mark"></div>
-    <h1>LeefomgevingLab</h1>
-    <span class="badge">datakwaliteit WFS</span>
-    <nav>
-      <a href="/">Home</a>
-      <a href="/roadmap">Roadmap</a>
-      <a href="/kwaliteit">Kwaliteit</a>
-      <a href="/viewer">REV-viewer</a>
-      <a href="/chatbot">Chatbot</a>
-    </nav>
+    <div class="mark"></div><h1>LeefomgevingLab</h1><span class="badge">datakwaliteit WFS</span>
+    <nav><a href="/">Home</a><a href="/roadmap">Roadmap</a><a href="/kwaliteit">Kwaliteit</a><a href="/viewer">REV-viewer</a><a href="/chatbot">Chatbot</a></nav>
   </header>
 
   <div class="wrap">
     <div class="hero">
       <h2>Datakwaliteit REV-WFS</h2>
-      <p>
-        Een live kwaliteitsscan op de open REV GeoServer WFS (<code>rev-portaal.nl</code>): per laag het
-        exacte totaal (via <code>resultType=hits</code>) en — uit een sample — de geometrie-validiteit,
-        lege bron-/stofvelden, verlopen objecten, ruwe duplicaten en het aantal bronhouders.
-      </p>
-      <div class="note">
-        <b>Let op:</b> de WFS is een presentatielaag; kwaliteitsissues ontstaan bij de aanlevering
-        door de bronhouder. Percentages (behalve het totaal) zijn <b>sample-gebaseerd</b> — indicatief,
-        geen volledige telling. Pre-productie/oefen kan afwijken van productie.
-      </div>
+      <p>Live kwaliteitsscan over <b>alle lagen</b> van de open REV GeoServer WFS (<code>rev-portaal.nl</code>).
+        Kies een <b>kwaliteitsaspect</b>, en filter op <b>bronhouder/omgevingsdienst</b> of <b>activiteit</b> —
+        het totaal is dan een exacte telling voor die selectie (via <code>resultType=hits</code> + CQL).</p>
+      <div class="note"><b>Let op:</b> de WFS is een presentatielaag; kwaliteitsissues ontstaan bij de aanlevering
+        door de bronhouder. Het <b>totaal</b> per selectie is exact; de kwaliteits-metrics (geometrie-validiteit,
+        null-rates) zijn <b>sample-gebaseerd</b> (indicatief). Een verse scan over alle lagen duurt enkele minuten.</div>
     </div>
 
-    <div class="bar">
-      <button id="refresh">Ververs scan</button>
-      <span class="meta" id="meta">laden…</span>
+    <div class="controls">
+      <div class="ctl"><label>Kwaliteitsaspect</label><select id="aspect"></select></div>
+      <div class="ctl"><label>Bronhouder / omgevingsdienst</label><select id="bronhouder"><option value="">— alle —</option></select></div>
+      <div class="ctl"><label>Activiteit</label><select id="activiteit"><option value="">— alle —</option></select></div>
+      <div class="ctl"><button id="refresh">Ververs scan</button></div>
     </div>
+    <div class="meta" id="meta">laden…</div>
+
+    <div class="legend" id="legend"></div>
 
     <table id="tbl">
-      <thead>
-        <tr>
-          <th class="laag" style="text-align:left">Laag</th>
-          <th>Totaal</th><th>Sample</th>
-          <th>Geom&nbsp;valide</th><th>Geom&nbsp;invalide</th><th>% invalide</th>
-          <th>Bron&nbsp;leeg</th><th>Stof&nbsp;leeg</th><th>Verlopen</th><th>Dupl.</th><th>#Bronh.</th>
-        </tr>
-      </thead>
-      <tbody id="rows"><tr><td colspan="11" class="muted" style="text-align:center">laden…</td></tr></tbody>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="rows"><tr><td class="muted">laden…</td></tr></tbody>
     </table>
 
-    <footer>
-      Read-only scan; degradeert per laag. Zie ook <a href="/kwaliteit" style="color:var(--muted);text-decoration:underline">Kwaliteit per POC</a>.
-    </footer>
+    <footer>Read-only scan; degradeert per laag. Zie ook <a href="/kwaliteit" style="color:var(--muted);text-decoration:underline">Kwaliteit per POC</a>.</footer>
   </div>
 
   <script>
-    const rows = document.getElementById("rows");
-    const meta = document.getElementById("meta");
-    const btn = document.getElementById("refresh");
-    function esc(s){ const t=document.createElement("span"); t.textContent = s==null?"":String(s); return t.innerHTML; }
-    function num(n){ return n==null ? "–" : Number(n).toLocaleString("nl-NL"); }
-    function pctCell(p){
-      if (p==null) return '<td class="muted">–</td>';
-      const cls = p < 5 ? "ok" : (p <= 25 ? "mid" : "bad");
-      return '<td><span class="pill '+cls+'">'+esc(p)+'%</span></td>';
-    }
+    const ASPECTS = [
+      {key:"geom_invalid_pct", label:"Geometrie invalide %", pct:true, slecht:true,
+        uitleg:"Aandeel polygonen in de sample met een ongeldige geometrie (bv. zelfdoorsnijding). Kritisch voor point-in-polygon: invalide vlakken kunnen een INTERSECTS-treffer missen."},
+      {key:"bron_null", label:"Bron leeg", slecht:true,
+        uitleg:"Features zonder bedrijfsnaam / exploitant / bronhouder — herkomst onbekend."},
+      {key:"stof_null", label:"Stof leeg", slecht:true,
+        uitleg:"Features zonder maatgevende stof (waar dat veld hoort)."},
+      {key:"verlopen", label:"Verlopen", slecht:true,
+        uitleg:"Objecten met een eind_geldigheid in het verleden die toch worden geleverd."},
+      {key:"duplicaten", label:"Duplicaten", slecht:true,
+        uitleg:"Identieke features (zelfde identificatie + geometrie) in de sample."},
+      {key:"totaal", label:"Dekking (totaal)", slecht:false,
+        uitleg:"Exact aantal features in de laag (via resultType=hits; respecteert de bronhouder/activiteit-selectie)."},
+      {key:"n_bronhouders", label:"# Bronhouders", slecht:false,
+        uitleg:"Aantal verschillende aanleverende bronhouders in de sample."},
+    ];
+    const COLS = [
+      {key:"totaal",label:"Totaal"},{key:"sample",label:"Sample",muted:true},
+      {key:"geom_valid",label:"Geom valide"},{key:"geom_invalid",label:"Geom invalide"},
+      {key:"geom_invalid_pct",label:"% invalide",pct:true},
+      {key:"bron_null",label:"Bron leeg"},{key:"stof_null",label:"Stof leeg"},
+      {key:"verlopen",label:"Verlopen"},{key:"duplicaten",label:"Dupl."},{key:"n_bronhouders",label:"#Bronh."},
+    ];
+    const $ = id => document.getElementById(id);
+    function esc(s){ const t=document.createElement("span"); t.textContent=s==null?"":String(s); return t.innerHTML; }
+    function num(n){ return n==null?"–":Number(n).toLocaleString("nl-NL"); }
+    function pctPill(p){ if(p==null) return '<span class="muted">–</span>';
+      const c=p<5?"ok":(p<=25?"mid":"bad"); return '<span class="pill '+c+'">'+esc(p)+'%</span>'; }
     function shortLaag(l){ return String(l).replace("rev_public:",""); }
-    async function load(refresh){
-      btn.disabled = true; meta.textContent = refresh ? "verse scan draait (kan ~1 min duren)…" : "laden…";
-      rows.innerHTML = '<tr><td colspan="11" class="muted" style="text-align:center">bezig…</td></tr>';
-      try {
-        const r = await fetch("/api/wfs-kwaliteit" + (refresh ? "?refresh=1" : ""));
-        const d = await r.json();
-        rows.innerHTML = (d.lagen||[]).map(row => {
-          if (row.error) return '<tr><td class="laag">'+esc(shortLaag(row.laag))+'</td>'+
-            '<td colspan="10" class="muted" style="text-align:left">fout: '+esc(row.error)+'</td></tr>';
-          return '<tr>'+
-            '<td class="laag">'+esc(shortLaag(row.laag))+'</td>'+
-            '<td>'+num(row.totaal)+'</td><td class="muted">'+num(row.sample)+'</td>'+
-            '<td>'+num(row.geom_valid)+'</td><td>'+num(row.geom_invalid)+'</td>'+ pctCell(row.geom_invalid_pct)+
-            '<td>'+num(row.bron_null)+'</td><td>'+num(row.stof_null)+'</td>'+
-            '<td>'+num(row.verlopen)+'</td><td>'+num(row.duplicaten)+'</td><td>'+num(row.n_bronhouders)+'</td>'+
-          '</tr>';
-        }).join("") || '<tr><td colspan="11" class="muted">geen data</td></tr>';
-        meta.textContent = "Gescand op " + esc(d.gescand_op) + (d.uit_cache ? " (uit cache)" : " (verse scan)") +
-          " · sample " + esc(d.sample_n) + " · " + esc(d.wfs_url);
-      } catch(e){
-        rows.innerHTML = '<tr><td colspan="11" class="muted" style="text-align:center">scan mislukt (WFS onbereikbaar?)</td></tr>';
-        meta.textContent = "fout bij ophalen";
-      }
-      btn.disabled = false;
+
+    // aspect-selector + legenda
+    ASPECTS.forEach(a => { const o=document.createElement("option"); o.value=a.key; o.textContent=a.label; $("aspect").appendChild(o); });
+    function renderLegend(){
+      const sel=$("aspect").value;
+      $("legend").innerHTML = ASPECTS.map(a =>
+        '<div class="lg'+(a.key===sel?' sel':'')+'"><b>'+esc(a.label)+'</b> — <span>'+esc(a.uitleg)+'</span></div>').join("");
     }
-    btn.addEventListener("click", () => load(true));
-    load(false);
+
+    let laatste = null;         // laatste scan-data
+    let dropdownsGevuld = false;
+
+    function renderTable(){
+      if(!laatste) return;
+      const asp = $("aspect").value;
+      $("head").innerHTML = '<th class="laag">Laag</th>' + COLS.map(c =>
+        '<th class="'+(c.key===asp?'sel':'')+'">'+esc(c.label)+'</th>').join("");
+      const rows = (laatste.lagen||[]).slice().sort((a,b) => {
+        const av=a[asp], bv=b[asp];
+        if(av==null) return 1; if(bv==null) return -1;
+        return (ASPECTS.find(x=>x.key===asp)||{}).slecht===false ? bv-av : bv-av; // altijd hoog→laag
+      });
+      $("rows").innerHTML = rows.map(r => {
+        if(r.error) return '<tr><td class="laag">'+esc(shortLaag(r.laag))+'</td><td colspan="'+COLS.length+'" class="muted" style="text-align:left">geen data voor deze selectie</td></tr>';
+        return '<tr><td class="laag">'+esc(shortLaag(r.laag))+'</td>'+ COLS.map(c => {
+          const v=r[c.key]; const cell = c.pct?pctPill(v):(c.muted?'<span class="muted">'+num(v)+'</span>':num(v));
+          return '<td class="'+(c.key===asp?'sel':'')+'">'+cell+'</td>';
+        }).join("")+'</tr>';
+      }).join("") || '<tr><td class="muted">geen data</td></tr>';
+    }
+
+    async function load(refresh){
+      $("refresh").disabled=true;
+      const bh=$("bronhouder").value, act=$("activiteit").value;
+      const q = new URLSearchParams(); if(refresh) q.set("refresh","1"); if(bh) q.set("bronhouder",bh); if(act) q.set("activiteit",act);
+      $("meta").textContent = refresh ? "verse scan over alle lagen draait (kan enkele minuten duren)…" : "laden…";
+      $("rows").innerHTML = '<tr><td class="muted">bezig…</td></tr>';
+      try {
+        const d = await (await fetch("/api/wfs-kwaliteit?"+q.toString())).json();
+        laatste = d;
+        if(!dropdownsGevuld && !bh && !act){        // dropdowns 1x vullen uit de ongefilterde basis
+          (d.bronhouders||[]).forEach(v => { const o=document.createElement("option"); o.value=v; o.textContent=v; $("bronhouder").appendChild(o); });
+          (d.activiteiten||[]).forEach(v => { const o=document.createElement("option"); o.value=v; o.textContent=v; $("activiteit").appendChild(o); });
+          dropdownsGevuld = true;
+        }
+        renderTable();
+        $("meta").textContent = "Gescand op "+esc(d.gescand_op)+(d.uit_cache?" (cache)":" (verse scan)")+
+          " · "+(d.lagen||[]).length+" lagen · sample "+esc(d.sample_n)+
+          (d.cql?" · filter: "+esc(d.cql):"");
+      } catch(e){
+        $("rows").innerHTML = '<tr><td class="muted">scan mislukt (WFS onbereikbaar?)</td></tr>';
+        $("meta").textContent="fout bij ophalen";
+      }
+      $("refresh").disabled=false;
+    }
+
+    $("aspect").addEventListener("change", () => { renderLegend(); renderTable(); });
+    $("bronhouder").addEventListener("change", () => load(false));
+    $("activiteit").addEventListener("change", () => load(false));
+    $("refresh").addEventListener("click", () => load(true));
+    renderLegend(); load(false);
   </script>
 </body>
 </html>

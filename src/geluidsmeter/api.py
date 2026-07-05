@@ -170,19 +170,25 @@ def wfs_kwaliteit_page():
 
 
 @app.get("/api/wfs-kwaliteit")
-def api_wfs_kwaliteit(refresh: int = 0):
+def api_wfs_kwaliteit(refresh: int = 0, bronhouder: str = "", activiteit: str = ""):
+    import hashlib
     ll = _config.get("leefomgevinglab", {})
     cfg = ll.get("wfs_kwaliteit", {})
+    wfs_url = cfg.get("wfs_url", "")
     cache_dir = Path(ll.get("cache_dir", "/tmp/llab_cache"))
     cache_dir.mkdir(parents=True, exist_ok=True)
-    cache = cache_dir / "wfs_kwaliteit.json"
+    cql = wfs_kwaliteit_mod.bouw_cql(bronhouder or None, activiteit or None)
+    sleutel = hashlib.sha256((cql or "basis").encode()).hexdigest()[:16]
+    cache = cache_dir / f"wfs_kwaliteit_{sleutel}.json"
     ttl = cfg.get("cache_ttl_s", 86400)
     if not refresh and cache.exists() and (datetime.now(timezone.utc).timestamp() - cache.stat().st_mtime) < ttl:
         data = json.loads(cache.read_text())
         data["uit_cache"] = True
         return data
-    data = wfs_kwaliteit_mod.scan_lagen(
-        cfg.get("wfs_url", ""), cfg.get("lagen", []), sample_n=cfg.get("sample_n", 300))
+    lagen = cfg.get("lagen") or wfs_kwaliteit_mod.lagen_uit_capabilities(
+        wfs_url, namespace=cfg.get("namespace", "rev_public:"))
+    data = wfs_kwaliteit_mod.scan_lagen(wfs_url, lagen, sample_n=cfg.get("sample_n", 300), cql=cql)
+    data["filter"] = {"bronhouder": bronhouder, "activiteit": activiteit}
     cache.write_text(json.dumps(data))
     data["uit_cache"] = False
     return data
