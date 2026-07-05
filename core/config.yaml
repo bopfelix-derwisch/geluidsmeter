@@ -105,6 +105,7 @@ leefomgevinglab:
     imev_verplichte_velden:
       - "identificatie"
       - "bronhoudercode"
+      - "bevoegdgezag"       # bevoegdGezagCode; alleen geëvalueerd waar ontsloten (o.a. ev_activiteiten)
       - "begin_geldigheid"
       - "tijdstip_registratie"
   ozon:

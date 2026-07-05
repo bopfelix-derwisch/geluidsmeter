@@ -18,8 +18,10 @@ from shapely.geometry import shape
 _SRC_FIELDS = ("bedrijfsnaam", "naamexploitant", "bronhouder")
 
 # IMEV 3.0.2: verplichte attributen van elk ExterneVeiligheidsobject, gemapt op de WFS-veldnamen.
-# (bevoegdGezagCode is óók IMEV-verplicht maar wordt op de aandachtsgebied-lagen niet ontsloten.)
-IMEV_VERPLICHTE_VELDEN = ("identificatie", "bronhoudercode", "begin_geldigheid", "tijdstip_registratie")
+# 'bevoegdgezag' (bevoegdGezagCode) is óók IMEV-verplicht en wordt alleen geëvalueerd op lagen die
+# het ontsluiten (bv. ev_activiteiten); waar het veld niet in het schema zit, gaat het naar niet_in_schema.
+IMEV_VERPLICHTE_VELDEN = ("identificatie", "bronhoudercode", "bevoegdgezag",
+                          "begin_geldigheid", "tijdstip_registratie")
 
 
 def _parse_dt(v):
@@ -93,16 +95,21 @@ def _metrics_uit_sample(features: list, nu: datetime, bronhouders: set, activite
     seen = set()
     dup = 0
     laag_bronh = set()
-    schema_velden = set()                       # alle velden die ergens in de sample voorkomen
-    imev_ontbrekend = 0                          # totaal ontbrekende verplichte veldwaarden
+    # IMEV: bepaal welke verplichte velden de laag écht ontsluit (aanwezig in >=1 feature).
+    # Alleen die tellen we per feature als 'leeg'; velden die de laag niet ontsluit gaan
+    # naar niet_in_schema (structureel), zodat we een veld alleen evalueren waar het bestaat.
+    schema_velden = set()
+    for f in features:
+        schema_velden.update((f.get("properties") or {}).keys())
+    imev_in_schema = [v for v in imev_velden if v in schema_velden]
+    imev_niet_in_schema = [v for v in imev_velden if schema_velden and v not in schema_velden]
+    imev_ontbrekend = 0                          # totaal ontbrekende verplichte veldwaarden (leeg-maar-aanwezig)
     imev_incompleet = 0                          # features met >=1 ontbrekend verplicht veld
-    imev_veld_null = {v: 0 for v in imev_velden}
+    imev_veld_null = {v: 0 for v in imev_in_schema}
     for f in features:
         p = f.get("properties") or {}
-        schema_velden.update(p.keys())
-        # IMEV-verplichte velden: tel ontbrekende waarden
         mist = 0
-        for v in imev_velden:
+        for v in imev_in_schema:
             if not p.get(v):
                 imev_veld_null[v] += 1
                 mist += 1
@@ -144,7 +151,6 @@ def _metrics_uit_sample(features: list, nu: datetime, bronhouders: set, activite
             dup += 1
         seen.add(key)
     n = len(features)
-    niet_in_schema = [v for v in imev_velden if schema_velden and v not in schema_velden]
     return {
         "sample": n, "bron_null": src_null, "stof_null": stof_null, "verlopen": verlopen,
         "geom_valid": geom_valid, "geom_invalid": geom_invalid, "geom_empty": geom_empty,
@@ -155,7 +161,7 @@ def _metrics_uit_sample(features: list, nu: datetime, bronhouders: set, activite
         "imev_incompleet": imev_incompleet,
         "imev_incompleet_pct": round(100 * imev_incompleet / n, 1) if n else None,
         "imev_veld_null": {v: c for v, c in imev_veld_null.items() if c},
-        "imev_velden_niet_in_schema": niet_in_schema,
+        "imev_velden_niet_in_schema": imev_niet_in_schema,
     }
 
 
