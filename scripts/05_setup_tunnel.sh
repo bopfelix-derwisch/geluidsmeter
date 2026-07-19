@@ -33,9 +33,9 @@ echo "=== Stap 5: DNS koppelen ==="
 cloudflared tunnel route dns geluidsmeter geluid.felixisfelix.com
 
 echo "=== Stap 6: Systemd service installeren ==="
-sudo cp /home/bob/Geluidsmeter/systemd/geluidsmeter-tunnel.service /etc/systemd/system/
+sudo cp /home/bob/Geluidsmeter/systemd/leefomgevinglab-tunnel.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable --now geluidsmeter-tunnel.service
-sudo systemctl status geluidsmeter-tunnel.service
+sudo systemctl enable --now leefomgevinglab-tunnel.service
+sudo systemctl status leefomgevinglab-tunnel.service
 
 echo "=== Klaar! Test: curl https://geluid.felixisfelix.com/health ==="

@@ -33,8 +33,8 @@ Push met: `git push origin master`
 
 ## Services (nog niet actief — Sprint 0)
 
-- `geluidsmeter-capture.service` — audio capture loop (unit in `systemd/`)
-- `geluidsmeter-api.service` — FastAPI op poort 8792 (unit in `systemd/`)
+- `leefomgevinglab-capture.service` — audio capture loop (unit in `systemd/`)
+- `leefomgevinglab-api.service` — FastAPI op poort 8792 (unit in `systemd/`)
 
 Installeren (als je zover bent):
 ```bash

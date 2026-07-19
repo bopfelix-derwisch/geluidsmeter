@@ -1,5 +1,5 @@
 [Unit]
-Description=Geluidsmeter — audio capture + feature extract loop
+Description=LeefomgevingLab — audio capture + feature extract loop
 After=network.target
 
 [Service]

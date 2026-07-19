@@ -1,5 +1,5 @@
 [Unit]
-Description=Geluidsmeter — FastAPI service (poort 8792)
+Description=LeefomgevingLab — FastAPI service (poort 8792)
 After=network.target
 
 [Service]

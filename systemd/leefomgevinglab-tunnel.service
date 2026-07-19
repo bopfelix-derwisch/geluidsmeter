@@ -1,8 +1,8 @@
 [Unit]
-Description=Geluidsmeter — Cloudflare Tunnel (geluid.felixisfelix.com)
-After=network-online.target geluidsmeter-api.service
+Description=LeefomgevingLab — Cloudflare Tunnel (geluid.felixisfelix.com)
+After=network-online.target leefomgevinglab-api.service
 Wants=network-online.target
-Requires=geluidsmeter-api.service
+Requires=leefomgevinglab-api.service
 
 [Service]
 User=bob
