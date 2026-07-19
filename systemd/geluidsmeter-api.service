@@ -4,9 +4,9 @@ After=network.target
 
 [Service]
 User=bob
-WorkingDirectory=/home/bob/Geluidsmeter
-Environment=GELUIDSMETER_CONFIG_PATH=/home/bob/Geluidsmeter/core/config.yaml
-ExecStart=/home/bob/Geluidsmeter/.venv/bin/uvicorn geluidsmeter.api:app --host 0.0.0.0 --port 8792 --app-dir src
+WorkingDirectory=/home/bob/LeefomgevingLab
+Environment=GELUIDSMETER_CONFIG_PATH=/home/bob/LeefomgevingLab/core/config.yaml
+ExecStart=/home/bob/LeefomgevingLab/.venv/bin/uvicorn leefomgevinglab.geluidsmeter.api:app --host 0.0.0.0 --port 8792 --app-dir src
 Restart=on-failure
 RestartSec=10
 

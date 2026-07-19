@@ -150,23 +150,23 @@ def _mobile_location_entries(rivm_gdf=None) -> list[dict]:
 
 @app.get("/", response_class=HTMLResponse)
 def root():
-    landing = Path(__file__).parent.parent / "leefomgevinglab" / "static" / "index.html"
+    landing = Path(__file__).parent.parent / "static" / "index.html"
     return landing.read_text()
 
 
 @app.get("/roadmap", response_class=HTMLResponse)
 def roadmap_page():
-    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "roadmap.html").read_text()
+    return (Path(__file__).parent.parent / "static" / "roadmap.html").read_text()
 
 
 @app.get("/kwaliteit", response_class=HTMLResponse)
 def kwaliteit_page():
-    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "kwaliteit.html").read_text()
+    return (Path(__file__).parent.parent / "static" / "kwaliteit.html").read_text()
 
 
 @app.get("/wfs-kwaliteit", response_class=HTMLResponse)
 def wfs_kwaliteit_page():
-    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "wfs-kwaliteit.html").read_text()
+    return (Path(__file__).parent.parent / "static" / "wfs-kwaliteit.html").read_text()
 
 
 @app.get("/api/wfs-kwaliteit")
@@ -198,12 +198,12 @@ def api_wfs_kwaliteit(refresh: int = 0, bronhouder: str = "", activiteit: str = 
 
 @app.get("/demo", response_class=HTMLResponse)
 def demo_page():
-    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "demo.html").read_text()
+    return (Path(__file__).parent.parent / "static" / "demo.html").read_text()
 
 
 @app.get("/poc", response_class=HTMLResponse)
 def poc_page():
-    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "poc.html").read_text()
+    return (Path(__file__).parent.parent / "static" / "poc.html").read_text()
 
 
 @app.get("/health")
@@ -545,7 +545,7 @@ def api_chat(req: ChatRequest):
 
 @app.get("/chatbot", response_class=HTMLResponse)
 def chatbot_page():
-    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "chat.html").read_text()
+    return (Path(__file__).parent.parent / "static" / "chat.html").read_text()
 
 
 def _semantiek_graph():
@@ -598,7 +598,7 @@ def api_semantiek_node(uri: str):
 
 @app.get("/semantiek", response_class=HTMLResponse)
 def semantiek_page():
-    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "semantiek.html").read_text()
+    return (Path(__file__).parent.parent / "static" / "semantiek.html").read_text()
 
 
 def _ld_graph():
@@ -652,4 +652,4 @@ def api_datavraag(req: DatavraagRequest):
 
 @app.get("/datavraag", response_class=HTMLResponse)
 def datavraag_page():
-    return (Path(__file__).parent.parent / "leefomgevinglab" / "static" / "datavraag.html").read_text()
+    return (Path(__file__).parent.parent / "static" / "datavraag.html").read_text()

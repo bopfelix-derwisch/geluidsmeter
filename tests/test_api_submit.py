@@ -1,5 +1,5 @@
 import json
-import geluidsmeter.api as api_module
+import leefomgevinglab.geluidsmeter.api as api_module
 from fastapi.testclient import TestClient
 
 

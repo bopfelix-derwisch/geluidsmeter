@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-import geluidsmeter.api as api
+import leefomgevinglab.geluidsmeter.api as api
 import rdflib
 from rdflib import RDF, RDFS, Literal, URIRef
 from leefomgevinglab.ld.rev_to_rdf import LL, REV_CLASS

@@ -2,7 +2,7 @@ import pytest
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import Point, Polygon
-from src.geluidsmeter.source_match import (
+from src.leefomgevinglab.geluidsmeter.source_match import (
     estimate_dba,
     check_norm,
     identify_sources,

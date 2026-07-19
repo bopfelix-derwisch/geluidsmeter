@@ -4,11 +4,11 @@ After=network.target
 
 [Service]
 User=bob
-WorkingDirectory=/home/bob/Geluidsmeter
-Environment=GELUIDSMETER_CONFIG_PATH=/home/bob/Geluidsmeter/core/config.yaml
-Environment=PYTHONPATH=/home/bob/Geluidsmeter/src
+WorkingDirectory=/home/bob/LeefomgevingLab
+Environment=GELUIDSMETER_CONFIG_PATH=/home/bob/LeefomgevingLab/core/config.yaml
+Environment=PYTHONPATH=/home/bob/LeefomgevingLab/src
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/bob/Geluidsmeter/.venv/bin/python3 -c "from geluidsmeter.audio_capture import run_capture_loop; run_capture_loop()"
+ExecStart=/home/bob/LeefomgevingLab/.venv/bin/python3 -c "from leefomgevinglab.geluidsmeter.audio_capture import run_capture_loop; run_capture_loop()"
 Restart=on-failure
 RestartSec=10
 

@@ -1,4 +1,4 @@
-from geluidsmeter.api import _location_entry
+from leefomgevinglab.geluidsmeter.api import _location_entry
 
 
 def _make_config(public_name="Testbuurt", public_id="test-id"):

@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-import geluidsmeter.api as api
+import leefomgevinglab.geluidsmeter.api as api
 from leefomgevinglab.connectors.base import ConnectorError
 
 
