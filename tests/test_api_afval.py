@@ -50,21 +50,43 @@ def test_afval_trend(monkeypatch):
 
 def test_afval_duiding_ok(monkeypatch):
     client = _client(monkeypatch)
+    monkeypatch.setattr(api.afval_service, "stroom_context",
+                        lambda data_dir, regio, afvalstroom, jaar:
+                        {"naam": "Flevoland", "waarde_kton": 12.0, "rang": 8})
     monkeypatch.setattr(api.afval_duiding, "duiding",
-                        lambda regio_naam, afvalstroom, reeks, **kw:
+                        lambda regio_naam, afvalstroom, jaar, context, **kw:
                         {"duiding": "ok", "bron": "b", "disclaimer": "d"})
     r = client.post("/api/afval/duiding",
-                    json={"regio_naam": "Flevoland", "afvalstroom": "GFT-afval",
-                          "reeks": [{"jaar": 2020, "hoeveelheid_kton": 12.0, "circulariteit_pct": 75.0}]})
+                    json={"regio": "PV24", "afvalstroom": "GFT-afval", "jaar": 2020})
     assert r.status_code == 200
-    assert r.json()["duiding"] == "ok"
+    body = r.json()
+    assert body["duiding"] == "ok"
+    # context wordt meegeleverd zodat de modal de kerncijfers kan tonen
+    assert body["context"]["rang"] == 8
 
 
-def test_afval_duiding_llm_down_503(monkeypatch):
+def test_afval_duiding_llm_down_degradeert_met_context(monkeypatch):
+    # LLM offline: endpoint blijft 200 en levert de kerncijfers (context), duiding = None.
     client = _client(monkeypatch)
-    def boom(**kw):
+    monkeypatch.setattr(api.afval_service, "stroom_context",
+                        lambda data_dir, regio, afvalstroom, jaar:
+                        {"naam": "Flevoland", "waarde_kton": 12.0})
+    def boom(*a, **kw):
         raise ConnectorError("down")
-    monkeypatch.setattr(api.afval_duiding, "duiding", lambda *a, **kw: boom())
+    monkeypatch.setattr(api.afval_duiding, "duiding", boom)
     r = client.post("/api/afval/duiding",
-                    json={"regio_naam": "Flevoland", "afvalstroom": "GFT-afval", "reeks": []})
+                    json={"regio": "PV24", "afvalstroom": "GFT-afval", "jaar": 2020})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["duiding"] is None
+    assert body["context"]["waarde_kton"] == 12.0
+
+
+def test_afval_duiding_data_ontbreekt_503(monkeypatch):
+    client = _client(monkeypatch)
+    def missing(*a, **kw):
+        raise FileNotFoundError()
+    monkeypatch.setattr(api.afval_service, "stroom_context", missing)
+    r = client.post("/api/afval/duiding",
+                    json={"regio": "PV24", "afvalstroom": "GFT-afval", "jaar": 2020})
     assert r.status_code == 503

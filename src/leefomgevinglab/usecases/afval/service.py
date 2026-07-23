@@ -27,6 +27,20 @@ INDICATOREN = [
     {"key": "circulariteit", "label": "Circulariteit (%)"},
 ]
 
+TOTAAL_LABEL = "Totaal gemeentelijk afval"
+
+# Curated, feitelijke achtergrond per afvalstroom (algemene CBS-/afvalkennis).
+# Achtergrondcontext voor de duiding — geen cijfers, geen beleidsoordeel.
+AFVALSTROOM_ACHTERGROND = {
+    "Totaal gemeentelijk afval": "Al het afval dat gemeenten inzamelen bij huishoudens en via reinigingsdiensten samen.",
+    "Totaal huishoudelijk afval": "Al het afval dat huishoudens aanbieden, zowel gescheiden fracties als restafval.",
+    "Huishoudelijk restafval": "Het niet-gescheiden deel van het huishoudelijk afval; gaat grotendeels naar verbranding met energieterugwinning.",
+    "GFT-afval": "Groente-, fruit- en tuinafval; wordt gecomposteerd of vergist tot compost en groen gas.",
+    "Oud papier en karton": "Gescheiden ingezameld en vrijwel volledig gerecycled tot nieuw papier en karton.",
+    "Verpakkingsglas": "Flessen en potten; wordt omgesmolten tot nieuw glas en is in principe eindeloos herbruikbaar.",
+    "Kunststof verpakkingen": "Plastic verpakkingen; deels mechanisch gerecycled, deels verbrand afhankelijk van de kwaliteit van de fractie.",
+}
+
 
 def _paths(data_dir: str):
     d = Path(data_dir)
@@ -104,3 +118,74 @@ def trend(data_dir: str, regio: str, afvalstroom: str) -> dict:
             "circulariteit_pct": _none_if_missing(pct),
         })
     return {"regio": regio, "naam": naam, "afvalstroom": afvalstroom, "reeks": reeks}
+
+
+def stroom_context(data_dir: str, regio: str, afvalstroom: str, jaar: int) -> dict:
+    """Rijkere context voor de duiding: provinciewaarde + landelijke vergelijking/rang,
+    meerjarentrend, aandeel van totaal afval, hoogste/laagste provincie en achtergrond.
+    Puur afgeleid uit het bestaande aggregaat."""
+    vol_p, circ_p, _ = _paths(data_dir)
+    vol = pd.read_parquet(vol_p)
+    circ = pd.read_parquet(circ_p)
+    geo = _load_geo(data_dir)
+    jaar = int(jaar)
+    naam_map = {f["properties"]["identificatie"]: f["properties"]["naam"] for f in geo["features"]}
+    naam = naam_map.get(regio, regio)
+
+    stroom = vol[vol["afvalstroom"] == afvalstroom]
+    jaar_df = stroom[stroom["jaar"] == jaar]
+
+    prov_row = jaar_df[jaar_df["regio_code"] == regio]
+    waarde = float(prov_row["hoeveelheid_kton"].iloc[0]) if len(prov_row) else None
+
+    landelijk_gem = rang = aantal = boven = None
+    hoogste = laagste = None
+    if len(jaar_df):
+        landelijk_gem = float(jaar_df["hoeveelheid_kton"].mean())
+        aantal = int(jaar_df["regio_code"].nunique())
+        if waarde is not None:
+            gesorteerd = jaar_df.sort_values("hoeveelheid_kton", ascending=False)["regio_code"].tolist()
+            rang = gesorteerd.index(regio) + 1
+            boven = waarde > landelijk_gem
+        hi = jaar_df.loc[jaar_df["hoeveelheid_kton"].idxmax()]
+        lo = jaar_df.loc[jaar_df["hoeveelheid_kton"].idxmin()]
+        hoogste = {"naam": naam_map.get(hi["regio_code"], hi["regio_code"]),
+                   "waarde_kton": float(hi["hoeveelheid_kton"])}
+        laagste = {"naam": naam_map.get(lo["regio_code"], lo["regio_code"]),
+                   "waarde_kton": float(lo["hoeveelheid_kton"])}
+
+    prov_stroom = stroom[stroom["regio_code"] == regio].sort_values("jaar")
+    meerjaren = None
+    if len(prov_stroom) >= 2:
+        eerste, laatste = prov_stroom.iloc[0], prov_stroom.iloc[-1]
+        e0 = float(eerste["hoeveelheid_kton"])
+        volume_pct = ((float(laatste["hoeveelheid_kton"]) - e0) / e0 * 100) if e0 > 0 else None
+        pc = circ[circ["regio_code"] == regio].sort_values("jaar")
+        circ_punt = None
+        if len(pc) >= 2:
+            c0 = _none_if_missing(pc.iloc[0]["circulariteit_pct"])
+            c1 = _none_if_missing(pc.iloc[-1]["circulariteit_pct"])
+            if c0 is not None and c1 is not None:
+                circ_punt = c1 - c0
+        meerjaren = {"van_jaar": int(eerste["jaar"]), "tot_jaar": int(laatste["jaar"]),
+                     "volume_pct": volume_pct, "circ_pct_punt": circ_punt}
+
+    aandeel = None
+    if afvalstroom != TOTAAL_LABEL and waarde is not None:
+        tot = vol[(vol["regio_code"] == regio) & (vol["jaar"] == jaar)
+                  & (vol["afvalstroom"] == TOTAAL_LABEL)]
+        if len(tot) and float(tot["hoeveelheid_kton"].iloc[0]) > 0:
+            aandeel = waarde / float(tot["hoeveelheid_kton"].iloc[0]) * 100
+
+    cprov = circ[(circ["regio_code"] == regio) & (circ["jaar"] == jaar)]
+    circ_pct = _none_if_missing(cprov["circulariteit_pct"].iloc[0]) if len(cprov) else None
+
+    return {
+        "regio": regio, "naam": naam, "afvalstroom": afvalstroom, "jaar": jaar,
+        "waarde_kton": waarde, "circulariteit_pct": circ_pct,
+        "landelijk_gemiddelde_kton": landelijk_gem, "rang": rang,
+        "aantal_provincies": aantal, "boven_gemiddeld": boven,
+        "meerjaren": meerjaren, "aandeel_van_totaal_pct": aandeel,
+        "hoogste": hoogste, "laagste": laagste,
+        "achtergrond": AFVALSTROOM_ACHTERGROND.get(afvalstroom),
+    }

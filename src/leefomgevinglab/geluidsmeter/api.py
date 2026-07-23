@@ -692,9 +692,9 @@ def api_afval_trend(regio: str, afvalstroom: str):
 
 
 class AfvalDuidingRequest(BaseModel):
-    regio_naam: str
+    regio: str
     afvalstroom: str
-    reeks: list[dict]
+    jaar: int
 
 
 @app.post("/api/afval/duiding")
@@ -702,11 +702,18 @@ def api_afval_duiding(req: AfvalDuidingRequest):
     ll = _config.get("leefomgevinglab", {})
     llm = ll.get("llm", {})
     try:
-        return afval_duiding.duiding(
-            req.regio_naam, req.afvalstroom, req.reeks,
+        ctx = afval_service.stroom_context(_afval_data_dir(), req.regio, req.afvalstroom, req.jaar)
+    except FileNotFoundError:
+        raise HTTPException(status_code=503, detail="Afval-aggregaat nog niet ingeladen")
+    try:
+        out = afval_duiding.duiding(
+            ctx["naam"], req.afvalstroom, req.jaar, ctx,
             llm_base_url=llm.get("base_url", "http://localhost:8080/v1"),
             model=llm.get("model", "qwen2.5-32b"),
             timeout_s=llm.get("timeout_s", 60),
         )
-    except ConnectorError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
+    except ConnectorError:
+        # LLM offline: de kerncijfers blijven waardevol, dus context wél teruggeven.
+        out = {"duiding": None, "bron": afval_duiding.BRON, "disclaimer": afval_duiding.DISCLAIMER}
+    out["context"] = ctx
+    return out

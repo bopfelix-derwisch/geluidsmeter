@@ -25,8 +25,25 @@
   th, td { border-bottom: 1px solid #eee; padding: 3px 4px; text-align: right; }
   th:first-child, td:first-child { text-align: left; }
   button { margin-top: 10px; padding: 8px 10px; background: #0b4f6c; color: #fff; border: 0; border-radius: 4px; cursor: pointer; }
-  #duiding { margin-top: 10px; font-size: 13px; background: #f3f7f9; padding: 8px; border-radius: 4px; white-space: pre-wrap; }
   .bron { margin-top: 14px; font-size: 11px; color: #666; }
+  #trend button { width: 100%; }
+
+  /* Centrale AI-duiding-modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(8,32,44,.55);
+    display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+  .modal-overlay[hidden] { display: none; }
+  .modal-card { background: #fff; border-radius: 12px; max-width: 560px; width: 100%;
+    max-height: 88vh; overflow-y: auto; padding: 22px 24px; box-shadow: 0 18px 50px rgba(0,0,0,.35); position: relative; }
+  .modal-card h2 { margin: 0 28px 4px 0; font-size: 19px; color: #0b4f6c; }
+  .modal-card .sub { font-size: 12px; color: #789; margin-bottom: 14px; }
+  .modal-close { position: absolute; top: 12px; right: 14px; background: none; color: #789;
+    border: 0; font-size: 26px; line-height: 1; cursor: pointer; padding: 0; margin: 0; }
+  .stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; margin-bottom: 14px; }
+  .stats dt { color: #567; font-weight: 600; }
+  .stats dd { margin: 0; text-align: left; }
+  .duiding-text { font-size: 14px; line-height: 1.5; background: #f3f7f9; border-left: 3px solid #0b4f6c;
+    padding: 12px 14px; border-radius: 6px; white-space: pre-wrap; min-height: 40px; }
+  .modal-bron { margin-top: 12px; font-size: 11px; color: #789; }
 </style>
 </head>
 <body>
@@ -50,6 +67,17 @@
     <div id="trend"><h3>Klik op een provincie</h3></div>
     <div class="bron" id="licentie"></div>
   </aside>
+</div>
+
+<div id="modal" class="modal-overlay" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="modalClose" aria-label="Sluiten">&times;</button>
+    <h2 id="modalTitle"></h2>
+    <div class="sub" id="modalSub"></div>
+    <dl class="stats" id="modalStats"></dl>
+    <div class="duiding-text" id="modalDuiding"></div>
+    <div class="modal-bron" id="modalBron"></div>
+  </div>
 </div>
 <script>
 const RAMP = ["#f7fbff","#c6dbef","#6baed6","#2171b5","#08306b"];
@@ -121,21 +149,65 @@ async function showTrend(code, naam) {
   document.getElementById("trend").innerHTML =
     `<h3>${esc(naam)} — ${esc(afvalstroom)}</h3>` +
     `<table><thead><tr><th>Jaar</th><th>kton</th><th>circ.%</th></tr></thead><tbody>${rows}</tbody></table>` +
-    `<button id="duidBtn">AI-duiding</button><div id="duiding"></div>`;
-  document.getElementById("duidBtn").addEventListener("click", () => duiding(tr));
+    `<button id="duidBtn">AI-duiding (uitgebreid)</button>`;
+  document.getElementById("duidBtn").addEventListener("click",
+    () => openDuiding(code, naam, afvalstroom));
 }
 
-async function duiding(tr) {
-  const box = document.getElementById("duiding");
-  box.textContent = "Duiding ophalen…";
-  const r = await fetch("/api/afval/duiding", {
-    method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ regio_naam: tr.naam, afvalstroom: tr.afvalstroom, reeks: tr.reeks })
-  });
-  if (!r.ok) { box.textContent = "Duiding tijdelijk niet beschikbaar."; return; }
-  const d = await r.json();
-  box.textContent = d.duiding + "\n\n— " + d.disclaimer;
+const num = (v, d = 0) => (v === null || v === undefined) ? "–" : Number(v).toFixed(d);
+
+function statsRows(c) {
+  const r = [];
+  const push = (k, v) => r.push(`<dt>${k}</dt><dd>${v}</dd>`);
+  if (c.waarde_kton != null) push("Hoeveelheid", `${num(c.waarde_kton)} kton (${c.jaar})`);
+  if (c.landelijk_gemiddelde_kton != null) {
+    const pos = c.boven_gemiddeld == null ? "" : (c.boven_gemiddeld ? " · boven gemiddeld" : " · onder gemiddeld");
+    const rang = c.rang ? ` · ${c.rang}e van ${c.aantal_provincies}` : "";
+    push("Landelijk gem.", `${num(c.landelijk_gemiddelde_kton)} kton${rang}${pos}`);
+  }
+  if (c.aandeel_van_totaal_pct != null) push("Aandeel v/h totaal", `${num(c.aandeel_van_totaal_pct, 1)}%`);
+  if (c.meerjaren && c.meerjaren.volume_pct != null) {
+    const mj = c.meerjaren;
+    const cp = mj.circ_pct_punt == null ? "" : `, circ. ${mj.circ_pct_punt >= 0 ? "+" : ""}${num(mj.circ_pct_punt)} pp`;
+    push(`Trend ${mj.van_jaar}–${mj.tot_jaar}`, `volume ${mj.volume_pct >= 0 ? "+" : ""}${num(mj.volume_pct)}%${cp}`);
+  }
+  if (c.circulariteit_pct != null) push("Circulariteit", `${num(c.circulariteit_pct, 1)}% (${c.jaar})`);
+  if (c.hoogste && c.laagste)
+    push("Hoogste / laagste", `${esc(c.hoogste.naam)} (${num(c.hoogste.waarde_kton)}) · ${esc(c.laagste.naam)} (${num(c.laagste.waarde_kton)})`);
+  if (c.achtergrond) push("Achtergrond", esc(c.achtergrond));
+  return r.join("");
 }
+
+function closeModal() { document.getElementById("modal").hidden = true; }
+
+async function openDuiding(code, naam, afvalstroom) {
+  const jaar = document.getElementById("jaar").value;
+  document.getElementById("modal").hidden = false;
+  document.getElementById("modalTitle").textContent = `${naam} — ${afvalstroom}`;
+  document.getElementById("modalSub").textContent = `Jaar ${jaar}`;
+  document.getElementById("modalStats").innerHTML = "";
+  document.getElementById("modalBron").textContent = "";
+  const box = document.getElementById("modalDuiding");
+  box.textContent = "Cijfers en AI-duiding ophalen…";
+  let d;
+  try {
+    const r = await fetch("/api/afval/duiding", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ regio: code, afvalstroom, jaar: Number(jaar) })
+    });
+    if (!r.ok) { box.textContent = "Cijfers tijdelijk niet beschikbaar."; return; }
+    d = await r.json();
+  } catch (e) { box.textContent = "Cijfers tijdelijk niet beschikbaar."; return; }
+  document.getElementById("modalStats").innerHTML = statsRows(d.context || {});
+  box.textContent = d.duiding || "AI-duiding tijdelijk niet beschikbaar — de cijfers hierboven komen rechtstreeks uit CBS.";
+  document.getElementById("modalBron").textContent = `Bron: ${d.bron} — ${d.disclaimer}`;
+}
+
+document.getElementById("modalClose").addEventListener("click", closeModal);
+document.getElementById("modal").addEventListener("click", e => {
+  if (e.target.id === "modal") closeModal();
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
 
 map.on("load", loadMeta);
 </script>
