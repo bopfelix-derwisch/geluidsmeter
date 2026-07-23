@@ -68,6 +68,7 @@ C922 USB-mic (plughw:CARD=Webcam,DEV=0)
 - ✅ **Sprint 5:** publieke demo — geluid.felixisfelix.com via Cloudflare Tunnel
 - 🚧 **LeefomgevingLab fundering:** connector-laag (BaseConnector) + UC-04 REV-viewer met routes `/viewer`, `/api/rev/features` (PDOK OGC API), `/api/duiding` (lokale Qwen duiding). Nieuwe code onder `src/leefomgevinglab/` (connectors/ + usecases/); geluid wordt één use-case daar (gepland).
 - 🚧 **UC-03b — RAG:** vergunningen-chatbot op `/chatbot` (`POST /api/chat`). RAG-pijplijn: IPLO/DSO-docs ingest → chunking → embeddings via llama.cpp `/v1/embeddings` (default poort 8082) → VectorStore (NVMe) → conversationele antwoorden met bronverwijzing, vangnet, no-hallucination-prompt. Index gebouwd via `scripts/07_build_rag_index.py`; embedding-server moet voor live gebruik actief zijn.
+- 🚧 **UC-08 — Afval/circulair-dashboard:** provincie-choropleth + trend + Qwen-duiding op open CBS-afvalcijfers (83558NED, CC-BY 4.0) als open proxy voor het gesloten LMA/AMICE-aggregaat. Routes `/afval`, `/api/afval/{meta,choropleth,trend,duiding}`. Ingest via `scripts/11_fetch_afval_aggregaat.py` → `/mnt/nvme/geluidsmeter/data/external/afval/`. Code onder `src/leefomgevinglab/usecases/afval/` + `connectors/cbs_afval.py`.
 
 ---
 

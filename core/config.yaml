@@ -155,3 +155,8 @@ leefomgevinglab:
     center_lat: 51.885
     center_lon: 4.27
     zoom: 12
+  afval:
+    odata_base_url: "https://opendata.cbs.nl/ODataApi/OData"
+    table_id: "83558NED"                       # CBS "Gemeentelijke afvalstoffen; hoeveelheden" (CC-BY 4.0)
+    pdok_provincie_url: "https://api.pdok.nl/kadaster/bestuurlijkegebieden/ogc/v1"
+    data_dir: "/mnt/nvme/geluidsmeter/data/external/afval"

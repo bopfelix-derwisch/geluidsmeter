@@ -41,6 +41,8 @@ from leefomgevinglab.semantiek import graph as semantiek_graph
 from leefomgevinglab.ld import store as ld_store
 from leefomgevinglab.usecases.datavraag import grounding as dv_grounding
 from leefomgevinglab.usecases.datavraag import service as dv_service
+from leefomgevinglab.usecases.afval import service as afval_service
+from leefomgevinglab.usecases.afval import duiding as afval_duiding
 
 
 class MobileSubmission(BaseModel):
@@ -653,3 +655,58 @@ def api_datavraag(req: DatavraagRequest):
 @app.get("/datavraag", response_class=HTMLResponse)
 def datavraag_page():
     return (Path(__file__).parent.parent / "static" / "datavraag.html").read_text()
+
+
+def _afval_data_dir() -> str:
+    return _config.get("leefomgevinglab", {}).get("afval", {}).get(
+        "data_dir", "/mnt/nvme/geluidsmeter/data/external/afval")
+
+
+@app.get("/afval", response_class=HTMLResponse)
+def afval_page():
+    return (Path(__file__).parent.parent / "static" / "afval.html").read_text()
+
+
+@app.get("/api/afval/meta")
+def api_afval_meta():
+    try:
+        return afval_service.meta(_afval_data_dir())
+    except FileNotFoundError:
+        raise HTTPException(status_code=503, detail="Afval-aggregaat nog niet ingeladen")
+
+
+@app.get("/api/afval/choropleth")
+def api_afval_choropleth(afvalstroom: str, jaar: int, indicator: str = "volume"):
+    try:
+        return afval_service.choropleth(_afval_data_dir(), afvalstroom, jaar, indicator)
+    except FileNotFoundError:
+        raise HTTPException(status_code=503, detail="Afval-aggregaat nog niet ingeladen")
+
+
+@app.get("/api/afval/trend")
+def api_afval_trend(regio: str, afvalstroom: str):
+    try:
+        return afval_service.trend(_afval_data_dir(), regio, afvalstroom)
+    except FileNotFoundError:
+        raise HTTPException(status_code=503, detail="Afval-aggregaat nog niet ingeladen")
+
+
+class AfvalDuidingRequest(BaseModel):
+    regio_naam: str
+    afvalstroom: str
+    reeks: list[dict]
+
+
+@app.post("/api/afval/duiding")
+def api_afval_duiding(req: AfvalDuidingRequest):
+    ll = _config.get("leefomgevinglab", {})
+    llm = ll.get("llm", {})
+    try:
+        return afval_duiding.duiding(
+            req.regio_naam, req.afvalstroom, req.reeks,
+            llm_base_url=llm.get("base_url", "http://localhost:8080/v1"),
+            model=llm.get("model", "qwen2.5-32b"),
+            timeout_s=llm.get("timeout_s", 60),
+        )
+    except ConnectorError as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
