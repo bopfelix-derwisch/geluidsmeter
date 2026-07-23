@@ -21,6 +21,7 @@ _FIX = _ROOT / "tests" / "fixtures" / "afval"
 
 def vul_database(con, cbs_rows, clo_csv, afvalfonds_csv, lma_csv, opgehaald_op,
                  afvalfonds_jaar=2023, lma_jaar=2022):
+    store.reset(con)
     store.insert_crosswalk(con, CROSSWALK)
     telling = {}
 

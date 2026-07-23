@@ -15,6 +15,21 @@ def _row(regio, periode, **t):
     return {"Regiokenmerken": regio, "Perioden": periode, **t}
 
 
+def test_vul_database_is_idempotent(tmp_path):
+    con = store.open_db(str(tmp_path / "afval.duckdb"))
+    args = dict(clo_csv=str(FIX / "clo_huishoudelijk.csv"),
+                afvalfonds_csv=str(FIX / "afvalfonds_recycling.csv"),
+                lma_csv=str(FIX / "lma_rws.csv"), opgehaald_op="2026-07-23")
+    ingest.vul_database(con, cbs_rows=[_row("PV24    ", "2020JJ00", GFTAfval_6=12)], **args)
+    n1 = con.execute("SELECT COUNT(*) FROM afval_feit").fetchone()[0]
+    ingest.vul_database(con, cbs_rows=[_row("PV24    ", "2020JJ00", GFTAfval_6=12)], **args)
+    n2 = con.execute("SELECT COUNT(*) FROM afval_feit").fetchone()[0]
+    assert n1 == n2 and n1 > 0
+    # crosswalk niet verdubbeld
+    assert con.execute("SELECT COUNT(*) FROM afvalstroom_crosswalk").fetchone()[0] == len(
+        __import__("leefomgevinglab.afvaldb.crosswalk", fromlist=["CROSSWALK"]).CROSSWALK)
+
+
 def test_vul_database_laadt_alle_bronnen(tmp_path):
     con = store.open_db(str(tmp_path / "afval.duckdb"))
     cbs_rows = [_row("PV24    ", "2020JJ00", GFTAfval_6=12)]

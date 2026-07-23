@@ -30,6 +30,16 @@ def test_upsert_bron_is_idempotent(tmp_path):
     assert rows == [("X2",)]
 
 
+def test_reset_leegt_tabellen(tmp_path):
+    con = _con(tmp_path)
+    store.insert_feiten(con, [
+        {"bron_id": "b", "regio_code": "PV24", "jaar": 2020, "afvalstroom_canoniek": "GFT-afval",
+         "euralcode": None, "verwerking": "onbekend", "indicator_type": "volume",
+         "hoeveelheid": 1.0, "eenheid": "kton"}])
+    store.reset(con)
+    assert con.execute("SELECT COUNT(*) FROM afval_feit").fetchone()[0] == 0
+
+
 def test_forecast_roundtrip(tmp_path):
     con = _con(tmp_path)
     store.insert_forecasts(con, [

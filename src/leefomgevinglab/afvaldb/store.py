@@ -25,6 +25,12 @@ def open_db(path: str) -> duckdb.DuckDBPyConnection:
     return con
 
 
+def reset(con) -> None:
+    """Leeg de datatabellen zodat een her-ingest de data vervangt i.p.v. verdubbelt."""
+    for tbl in ("bron", "afval_feit", "afvalstroom_crosswalk", "forecast"):
+        con.execute(f"DELETE FROM {tbl}")
+
+
 def upsert_bron(con, bron: dict) -> None:
     con.execute("DELETE FROM bron WHERE bron_id = ?", [bron["bron_id"]])
     con.execute("INSERT INTO bron VALUES (?, ?, ?, ?, ?, ?)",
