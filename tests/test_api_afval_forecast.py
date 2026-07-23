@@ -12,6 +12,7 @@ def _client(monkeypatch, tmp_path):
 
 def test_forecast_endpoint(monkeypatch, tmp_path):
     client = _client(monkeypatch, tmp_path)
+    (tmp_path / "afval.duckdb").touch()
     monkeypatch.setattr(api.afval_service, "forecast",
                         lambda db_path, regio, afvalstroom:
                         {"regio": regio, "afvalstroom": afvalstroom, "historie": [],
@@ -20,3 +21,9 @@ def test_forecast_endpoint(monkeypatch, tmp_path):
     r = client.get("/api/afval/forecast", params={"regio": "PV24", "afvalstroom": "GFT-afval"})
     assert r.status_code == 200
     assert r.json()["forecast"][0]["jaar"] == 2035
+
+
+def test_forecast_endpoint_db_absent_503(monkeypatch, tmp_path):
+    client = _client(monkeypatch, tmp_path)
+    r = client.get("/api/afval/forecast", params={"regio": "PV24", "afvalstroom": "GFT-afval"})
+    assert r.status_code == 503
