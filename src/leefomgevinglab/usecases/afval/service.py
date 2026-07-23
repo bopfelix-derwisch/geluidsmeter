@@ -2,9 +2,20 @@
 choropleth-GeoJSON en tijdreeksen. Geen netwerk — puur bestand-gebaseerd.
 """
 import json
+import math
 from pathlib import Path
 
 import pandas as pd
+
+
+def _none_if_missing(val):
+    """Geef None terug voor None, NaN of niet-numerieke waarden; anders float(val)."""
+    if val is None:
+        return None
+    try:
+        return None if math.isnan(float(val)) else float(val)
+    except (TypeError, ValueError):
+        return None
 
 from .transform import AFVALSTROMEN
 
@@ -38,7 +49,7 @@ def meta(data_dir: str) -> dict:
         "regios": regios,
         "afvalstromen": list(AFVALSTROMEN.keys()),
         "jaren": jaren,
-        "indicatoren": INDICATOREN,
+        "indicatoren": list(INDICATOREN),
         "bron": BRON,
         "licentie": LICENTIE,
         "label": LABEL,
@@ -49,6 +60,8 @@ def choropleth(data_dir: str, afvalstroom: str, jaar: int, indicator: str) -> di
     vol_p, circ_p, _ = _paths(data_dir)
     geo = _load_geo(data_dir)
     if indicator == "circulariteit":
+        # Circulariteit is een per-provincie/jaar-aggregaat over alle stromen (spec §5);
+        # afvalstroom wordt hier bewust genegeerd.
         df = pd.read_parquet(circ_p)
         df = df[df["jaar"] == int(jaar)]
         lookup = dict(zip(df["regio_code"], df["circulariteit_pct"]))
@@ -62,7 +75,7 @@ def choropleth(data_dir: str, afvalstroom: str, jaar: int, indicator: str) -> di
         code = f["properties"]["identificatie"]
         val = lookup.get(code)
         f["properties"].update({
-            "value": None if val is None else float(val),
+            "value": _none_if_missing(val),
             "indicator": indicator,
             "afvalstroom": afvalstroom,
             "jaar": int(jaar),
@@ -88,6 +101,6 @@ def trend(data_dir: str, regio: str, afvalstroom: str) -> dict:
         reeks.append({
             "jaar": jaar,
             "hoeveelheid_kton": float(r["hoeveelheid_kton"]),
-            "circulariteit_pct": None if pct is None else float(pct),
+            "circulariteit_pct": _none_if_missing(pct),
         })
     return {"regio": regio, "naam": naam, "afvalstroom": afvalstroom, "reeks": reeks}
