@@ -160,3 +160,13 @@ leefomgevinglab:
     table_id: "83558NED"                       # CBS "Gemeentelijke afvalstoffen; hoeveelheden" (CC-BY 4.0)
     pdok_provincie_url: "https://api.pdok.nl/kadaster/bestuurlijkegebieden/ogc/v1"
     data_dir: "/mnt/nvme/geluidsmeter/data/external/afval"
+  afvaldb:
+    db_path: "/mnt/nvme/geluidsmeter/data/external/afval/afval.duckdb"
+    snapshots_dir: "/mnt/nvme/geluidsmeter/data/external/afval/snapshots"
+    forecast_tot_jaar: 2035
+    afvalfonds_jaar: 2023
+    lma_jaar: 2022
+    # Rapport-snapshots: laat leeg om de curated CSV-fallback in tests/fixtures te gebruiken;
+    # vul een pad naar een opgehaalde PDF om pdfplumber-extractie te draaien.
+    afvalfonds_pdf: ""
+    lma_pdf: ""
