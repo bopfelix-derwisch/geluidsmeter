@@ -75,11 +75,38 @@
     <h2 id="modalTitle"></h2>
     <div class="sub" id="modalSub"></div>
     <dl class="stats" id="modalStats"></dl>
+    <div id="modalChart"></div>
     <div class="duiding-text" id="modalDuiding"></div>
     <div class="modal-bron" id="modalBron"></div>
   </div>
 </div>
 <script>
+function forecastSVG(historie, forecast) {
+  const H = historie.map(p => ({ x: p.jaar, y: p.hoeveelheid_kton }));
+  const F = forecast.map(p => ({ x: p.jaar, y: p.verwacht, lo: p.ondergrens, hi: p.bovengrens }));
+  const pts = H.concat(F.map(p => ({ x: p.x, y: p.y })));
+  if (pts.length < 2) return "<p style='font-size:12px;color:#789'>Onvoldoende data voor een doorkijk.</p>";
+  const W = 500, Hh = 160, pad = 30;
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y).concat(F.map(p => p.hi));
+  const xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = 0, ymax = Math.max(...ys) * 1.1 || 1;
+  const sx = x => pad + (x - xmin) / (xmax - xmin || 1) * (W - 2 * pad);
+  const sy = y => Hh - pad - (y - ymin) / (ymax - ymin || 1) * (Hh - 2 * pad);
+  const line = a => a.map((p, i) => `${i ? "L" : "M"}${sx(p.x).toFixed(1)},${sy(p.y).toFixed(1)}`).join(" ");
+  let band = "";
+  if (F.length) {
+    const top = F.map(p => `${sx(p.x).toFixed(1)},${sy(p.hi).toFixed(1)}`);
+    const bot = F.slice().reverse().map(p => `${sx(p.x).toFixed(1)},${sy(p.lo).toFixed(1)}`);
+    band = `<polygon points="${top.concat(bot).join(" ")}" fill="#0b4f6c" opacity="0.12"/>`;
+  }
+  const fLine = F.length ? line([H[H.length - 1], ...F].map(p => ({ x: p.x, y: p.y }))) : "";
+  return `<svg viewBox="0 0 ${W} ${Hh}" width="100%" style="margin-top:8px">
+    ${band}
+    <path d="${line(H)}" fill="none" stroke="#0b4f6c" stroke-width="2"/>
+    <path d="${fLine}" fill="none" stroke="#0b4f6c" stroke-width="2" stroke-dasharray="5 4"/>
+    <text x="${pad}" y="12" font-size="10" fill="#789">kton — historie (doorgetrokken) + doorkijk (streep) tot ${xmax}</text>
+  </svg>`;
+}
+
 const RAMP = ["#f7fbff","#c6dbef","#6baed6","#2171b5","#08306b"];
 let META = null;
 
@@ -199,6 +226,21 @@ async function openDuiding(code, naam, afvalstroom) {
     d = await r.json();
   } catch (e) { box.textContent = "Cijfers tijdelijk niet beschikbaar."; return; }
   document.getElementById("modalStats").innerHTML = statsRows(d.context || {});
+  // extra cijfers uit landelijke bronnen
+  const extra = (d.context && d.context.extra) || {};
+  let extraHtml = "";
+  if (extra.recyclingpercentage != null)
+    extraHtml += `<dt>Recycling (NL)</dt><dd>${num(extra.recyclingpercentage, 0)}% — ${esc(extra.recycling_bron || "")}</dd>`;
+  if (extra.per_inwoner && extra.per_inwoner.length)
+    extraHtml += `<dt>Per inwoner (NL)</dt><dd>${num(extra.per_inwoner[extra.per_inwoner.length - 1].waarde, 0)} kg</dd>`;
+  if (extraHtml) document.getElementById("modalStats").innerHTML += extraHtml;
+  // doorkijk-grafiek
+  try {
+    const f = await (await fetch(`/api/afval/forecast?regio=${code}&afvalstroom=${encodeURIComponent(afvalstroom)}`)).json();
+    document.getElementById("modalChart").innerHTML =
+      forecastSVG(f.historie || [], f.forecast || []) +
+      `<div style="font-size:10px;color:#789;margin-top:2px">${esc(f.label || "")}</div>`;
+  } catch (e) { document.getElementById("modalChart").innerHTML = ""; }
   box.textContent = d.duiding || "AI-duiding tijdelijk niet beschikbaar — de cijfers hierboven komen rechtstreeks uit CBS.";
   document.getElementById("modalBron").textContent = `Bron: ${d.bron} — ${d.disclaimer}`;
 }
