@@ -34,3 +34,36 @@ def valideer_sql(sql: str) -> str:
     else:
         s = f"{s} LIMIT {_MAX_LIMIT}"
     return s
+
+
+PROVINCIE_NAMEN = {
+    "PV20": "Groningen", "PV21": "Fryslân", "PV22": "Drenthe", "PV23": "Overijssel",
+    "PV24": "Flevoland", "PV25": "Gelderland", "PV26": "Utrecht", "PV27": "Noord-Holland",
+    "PV28": "Zuid-Holland", "PV29": "Zeeland", "PV30": "Noord-Brabant", "PV31": "Limburg",
+}
+
+
+def bouw_grounding(con) -> str:
+    def distinct(kolom):
+        return [r[0] for r in con.execute(
+            f"SELECT DISTINCT {kolom} FROM afval_feit ORDER BY 1").fetchall()]
+    stromen = distinct("afvalstroom_canoniek")
+    regios = distinct("regio_code")
+    indicatoren = distinct("indicator_type")
+    bron_ids = distinct("bron_id")
+    jmin, jmax = con.execute("SELECT MIN(jaar), MAX(jaar) FROM afval_feit").fetchone()
+    prov = ", ".join(f"{c}={n}" for c, n in PROVINCIE_NAMEN.items())
+    return (
+        "Je genereert precies één DuckDB SQL SELECT over onderstaande database.\n"
+        "Tabel afval_feit(bron_id, regio_code, jaar, afvalstroom_canoniek, euralcode, "
+        "verwerking, indicator_type, hoeveelheid, eenheid).\n"
+        "Tabel forecast(regio_code, afvalstroom_canoniek, jaar, verwacht, ondergrens, "
+        "bovengrens, methode).\n"
+        f"regio_code is 'NL' of een provinciecode. Provincies: {prov}.\n"
+        f"afvalstroom_canoniek in: {stromen}.\n"
+        f"regio_code-waarden aanwezig: {regios}.\n"
+        f"indicator_type in: {indicatoren} (volume in kton of ton; recyclingpercentage in "
+        "pct; per_inwoner in kg per inwoner).\n"
+        f"bron_id in: {bron_ids}. jaar loopt van {jmin} t/m {jmax}.\n"
+        "Geef UITSLUITEND de SELECT-query terug: geen uitleg, geen puntkomma, geen ```-fences."
+    )
