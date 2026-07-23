@@ -189,3 +189,42 @@ def stroom_context(data_dir: str, regio: str, afvalstroom: str, jaar: int) -> di
         "hoogste": hoogste, "laagste": laagste,
         "achtergrond": AFVALSTROOM_ACHTERGROND.get(afvalstroom),
     }
+
+
+from leefomgevinglab.afvaldb import store as _afvaldb_store
+
+FORECAST_LABEL = "Indicatieve modelmatige extrapolatie (Holt) — geen beleidsprognose"
+
+
+def forecast(db_path: str, regio: str, afvalstroom: str) -> dict:
+    con = _afvaldb_store.open_db(db_path)
+    try:
+        reeks = _afvaldb_store.series(con, regio, afvalstroom, indicator_type="volume")
+        fc = _afvaldb_store.forecast_rows(con, regio, afvalstroom)
+    finally:
+        con.close()
+    return {
+        "regio": regio, "afvalstroom": afvalstroom,
+        "historie": [{"jaar": j, "hoeveelheid_kton": h} for j, h in reeks],
+        "forecast": [{"jaar": r["jaar"], "verwacht": r["verwacht"],
+                      "ondergrens": r["ondergrens"], "bovengrens": r["bovengrens"]} for r in fc],
+        "methode": "holt", "label": FORECAST_LABEL,
+    }
+
+
+def extra_context(db_path: str, afvalstroom: str) -> dict:
+    con = _afvaldb_store.open_db(db_path)
+    try:
+        rec = con.execute(
+            "SELECT hoeveelheid, bron_id FROM afval_feit WHERE afvalstroom_canoniek = ? "
+            "AND indicator_type = 'recyclingpercentage' ORDER BY jaar DESC LIMIT 1", [afvalstroom]).fetchone()
+        pi = con.execute(
+            "SELECT jaar, hoeveelheid FROM afval_feit WHERE afvalstroom_canoniek = ? "
+            "AND indicator_type = 'per_inwoner' ORDER BY jaar", [afvalstroom]).fetchall()
+    finally:
+        con.close()
+    return {
+        "recyclingpercentage": float(rec[0]) if rec else None,
+        "recycling_bron": rec[1] if rec else None,
+        "per_inwoner": [{"jaar": int(j), "waarde": float(h)} for j, h in pi] or None,
+    }
