@@ -53,7 +53,13 @@
 </div>
 <script>
 const RAMP = ["#f7fbff","#c6dbef","#6baed6","#2171b5","#08306b"];
-let META = null, SELECTED = null;
+let META = null;
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
 const map = new maplibregl.Map({
   container: "map",
   style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
@@ -91,7 +97,7 @@ async function refresh() {
   if (src) src.setData(fc); else addLayer(fc);
   const eenheid = fc.features[0] ? fc.features[0].properties.eenheid : "";
   document.getElementById("legend").innerHTML =
-    `<b>${indicator === "circulariteit" ? "Circulariteit" : afvalstroom} (${eenheid})</b><br>` +
+    `<b>${indicator === "circulariteit" ? "Circulariteit" : esc(afvalstroom)} (${eenheid})</b><br>` +
     `<i style="background:${RAMP[0]}"></i>${isFinite(min)?min.toFixed(0):"–"} … ` +
     `<i style="background:${RAMP[4]}"></i>${isFinite(max)?max.toFixed(0):"–"}`;
 }
@@ -108,13 +114,12 @@ function addLayer(fc) {
 
 async function showTrend(code, naam) {
   const afvalstroom = document.getElementById("afvalstroom").value;
-  SELECTED = { code, naam, afvalstroom };
   const tr = await (await fetch(`/api/afval/trend?regio=${code}&afvalstroom=${encodeURIComponent(afvalstroom)}`)).json();
   let rows = tr.reeks.map(p =>
     `<tr><td>${p.jaar}</td><td>${p.hoeveelheid_kton.toFixed(0)}</td>` +
     `<td>${p.circulariteit_pct === null ? "–" : p.circulariteit_pct.toFixed(0)}</td></tr>`).join("");
   document.getElementById("trend").innerHTML =
-    `<h3>${naam} — ${afvalstroom}</h3>` +
+    `<h3>${esc(naam)} — ${esc(afvalstroom)}</h3>` +
     `<table><thead><tr><th>Jaar</th><th>kton</th><th>circ.%</th></tr></thead><tbody>${rows}</tbody></table>` +
     `<button id="duidBtn">AI-duiding</button><div id="duiding"></div>`;
   document.getElementById("duidBtn").addEventListener("click", () => duiding(tr));
