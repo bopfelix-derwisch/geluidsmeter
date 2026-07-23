@@ -662,6 +662,18 @@ def _afval_data_dir() -> str:
         "data_dir", "/mnt/nvme/geluidsmeter/data/external/afval")
 
 
+def _afvaldb_path() -> str:
+    return _config.get("leefomgevinglab", {}).get("afvaldb", {}).get(
+        "db_path", "/mnt/nvme/geluidsmeter/data/external/afval/afval.duckdb")
+
+
+@app.get("/api/afval/forecast")
+def api_afval_forecast(regio: str, afvalstroom: str):
+    if not Path(_afvaldb_path()).exists():
+        raise HTTPException(status_code=503, detail="Afval-database nog niet gevuld")
+    return afval_service.forecast(_afvaldb_path(), regio, afvalstroom)
+
+
 @app.get("/afval", response_class=HTMLResponse)
 def afval_page():
     return (Path(__file__).parent.parent / "static" / "afval.html").read_text()
@@ -705,6 +717,17 @@ def api_afval_duiding(req: AfvalDuidingRequest):
         ctx = afval_service.stroom_context(_afval_data_dir(), req.regio, req.afvalstroom, req.jaar)
     except FileNotFoundError:
         raise HTTPException(status_code=503, detail="Afval-aggregaat nog niet ingeladen")
+    if Path(_afvaldb_path()).exists():
+        try:
+            fc = afval_service.forecast(_afvaldb_path(), req.regio, req.afvalstroom)
+            ctx["forecast"] = fc["forecast"][-1] if fc["forecast"] else None
+            ctx["extra"] = afval_service.extra_context(_afvaldb_path(), req.afvalstroom)
+        except Exception:
+            ctx["forecast"] = None
+            ctx["extra"] = None
+    else:
+        ctx["forecast"] = None
+        ctx["extra"] = None
     try:
         out = afval_duiding.duiding(
             ctx["naam"], req.afvalstroom, req.jaar, ctx,

@@ -39,12 +39,23 @@ def build_prompt(regio_naam: str, afvalstroom: str, jaar: int, context: dict) ->
                       f"laagste: {lo['naam']} ({round(lo['waarde_kton'], 1)} kton)")
     if c.get("achtergrond"):
         regels.append(f"- Achtergrond: {c['achtergrond']}")
+    fc = c.get("forecast")
+    if fc and fc.get("verwacht") is not None:
+        regels.append(f"- Doorkijk (Holt-extrapolatie, indicatief) {fc['jaar']}: "
+                      f"{round(fc['verwacht'], 1)} kton (band {round(fc['ondergrens'], 1)}–{round(fc['bovengrens'], 1)})")
+    extra = c.get("extra") or {}
+    if extra.get("recyclingpercentage") is not None:
+        regels.append(f"- Landelijk recyclingpercentage: {round(extra['recyclingpercentage'], 0)}% "
+                      f"(bron: {extra.get('recycling_bron')})")
+    if extra.get("per_inwoner"):
+        laatste = extra["per_inwoner"][-1]
+        regels.append(f"- Landelijk per inwoner ({laatste['jaar']}): {round(laatste['waarde'], 0)} kg")
     body = "\n".join(regels)
     return (
         "Je bent een feitelijke data-assistent. Vat onderstaande cijfers over deze afvalstroom in "
         "3-5 zinnen begrijpelijk samen voor een burger: benoem hoe de provincie zich verhoudt tot het "
-        "landelijk beeld, de meerjarentrend en het aandeel. Verzin niets; gebruik uitsluitend de gegeven "
-        "getallen en achtergrond. Trek geen beleidsconclusies.\n\n"
+        "landelijk beeld, de meerjarentrend, het aandeel en de doorkijk (extrapolatie) naar de toekomst. "
+        "Verzin niets; gebruik uitsluitend de gegeven getallen en achtergrond. Trek geen beleidsconclusies.\n\n"
         f"Provincie: {regio_naam}\nAfvalstroom: {afvalstroom}\nJaar: {jaar}\n{body}"
     )
 

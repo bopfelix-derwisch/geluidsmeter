@@ -4,6 +4,7 @@ sounddevice
 soundfile
 pandas
 pyarrow
+pdfplumber
 geopandas
 pyproj
 shapely

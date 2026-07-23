@@ -63,3 +63,13 @@ def test_duiding_llm_down_raises(monkeypatch):
     with pytest.raises(ConnectorError):
         d.duiding("Flevoland", "GFT-afval", 2020, _CONTEXT,
                   llm_base_url="http://localhost:8080/v1", model="qwen2.5-32b")
+
+
+def test_build_prompt_neemt_forecast_en_extra_mee():
+    ctx = dict(_CONTEXT)
+    ctx["forecast"] = {"jaar": 2035, "verwacht": 20.0, "ondergrens": 15.0, "bovengrens": 25.0}
+    ctx["extra"] = {"recyclingpercentage": 86.0, "recycling_bron": "afvalfonds-2023", "per_inwoner": None}
+    p = d.build_prompt("Flevoland", "GFT-afval", 2020, ctx)
+    assert "2035" in p and "20" in p           # doorkijk
+    assert "86" in p                            # recyclingpercentage
+    assert "doorkijk" in p.lower() or "extrapol" in p.lower()
