@@ -98,7 +98,8 @@ function forecastSVG(historie, forecast) {
     const bot = F.slice().reverse().map(p => `${sx(p.x).toFixed(1)},${sy(p.lo).toFixed(1)}`);
     band = `<polygon points="${top.concat(bot).join(" ")}" fill="#0b4f6c" opacity="0.12"/>`;
   }
-  const fLine = F.length ? line([H[H.length - 1], ...F].map(p => ({ x: p.x, y: p.y }))) : "";
+  const fStart = H.length ? [H[H.length - 1], ...F] : F;
+  const fLine = F.length ? line(fStart.map(p => ({ x: p.x, y: p.y }))) : "";
   return `<svg viewBox="0 0 ${W} ${Hh}" width="100%" style="margin-top:8px">
     ${band}
     <path d="${line(H)}" fill="none" stroke="#0b4f6c" stroke-width="2"/>
@@ -236,7 +237,7 @@ async function openDuiding(code, naam, afvalstroom) {
   if (extraHtml) document.getElementById("modalStats").innerHTML += extraHtml;
   // doorkijk-grafiek
   try {
-    const f = await (await fetch(`/api/afval/forecast?regio=${code}&afvalstroom=${encodeURIComponent(afvalstroom)}`)).json();
+    const f = await (await fetch(`/api/afval/forecast?regio=${encodeURIComponent(code)}&afvalstroom=${encodeURIComponent(afvalstroom)}`)).json();
     document.getElementById("modalChart").innerHTML =
       forecastSVG(f.historie || [], f.forecast || []) +
       `<div style="font-size:10px;color:#789;margin-top:2px">${esc(f.label || "")}</div>`;
