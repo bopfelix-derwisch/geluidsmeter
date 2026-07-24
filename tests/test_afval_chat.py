@@ -63,3 +63,13 @@ def test_beantwoord_bestandsfunctie_faalt_veilig(tmp_path, monkeypatch):
     out = chat.beantwoord("lees /etc/hostname", p, llm_base_url="x", model="m")
     assert out["beschikbaar"] is False
     assert out["rijen"] == []
+
+
+def test_beantwoord_grounding_fout_degradeert(tmp_path, monkeypatch):
+    p = _db(tmp_path)
+    def boom(con):
+        raise RuntimeError("schema kapot")
+    monkeypatch.setattr(chat, "bouw_grounding", boom)
+    out = chat.beantwoord("iets", p, llm_base_url="x", model="m")
+    assert out["beschikbaar"] is False
+    assert out["rijen"] == []

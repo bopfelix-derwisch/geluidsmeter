@@ -88,7 +88,9 @@ def bronnen(con) -> list[dict]:
     return out
 
 
-def run_select(con, sql: str) -> list[dict]:
+def run_select(con, sql: str, max_rows: int = 200) -> list[dict]:
+    # Harde rij-begrenzing als backstop: ook een query zonder (buitenste) LIMIT
+    # levert nooit meer dan max_rows terug, ongeacht de SQL.
     cur = con.execute(sql)
     names = [c[0] for c in cur.description]
-    return [dict(zip(names, row)) for row in cur.fetchall()]
+    return [dict(zip(names, row)) for row in cur.fetchmany(max_rows)]

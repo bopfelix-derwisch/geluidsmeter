@@ -44,3 +44,15 @@ def test_open_readonly_blokkeert_bestandstoegang(tmp_path):
     con = store.open_readonly(p)
     with pytest.raises(duckdb.Error):
         con.execute("SELECT content FROM read_text('/etc/hostname')")
+
+
+def test_run_select_begrenst_rijen(tmp_path):
+    p = str(tmp_path / "afval.duckdb")
+    con = store.open_db(p)
+    store.insert_feiten(con, [
+        {"bron_id": "cbs-83558NED", "regio_code": "PV24", "jaar": 2018 + i,
+         "afvalstroom_canoniek": "GFT-afval", "euralcode": None, "verwerking": "onbekend",
+         "indicator_type": "volume", "hoeveelheid": 1.0 * i, "eenheid": "kton"} for i in range(3)])
+    # zonder LIMIT in de query begrenst run_select toch tot max_rows
+    rijen = store.run_select(con, "SELECT * FROM afval_feit", max_rows=2)
+    assert len(rijen) == 2
