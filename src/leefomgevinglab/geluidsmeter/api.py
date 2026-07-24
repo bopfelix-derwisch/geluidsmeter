@@ -43,6 +43,8 @@ from leefomgevinglab.usecases.datavraag import grounding as dv_grounding
 from leefomgevinglab.usecases.datavraag import service as dv_service
 from leefomgevinglab.usecases.afval import service as afval_service
 from leefomgevinglab.usecases.afval import duiding as afval_duiding
+from leefomgevinglab.usecases.afval import chat as afval_chat
+from leefomgevinglab.afvaldb import store as afvaldb_store
 
 
 class MobileSubmission(BaseModel):
@@ -740,3 +742,48 @@ def api_afval_duiding(req: AfvalDuidingRequest):
         out = {"duiding": None, "bron": afval_duiding.BRON, "disclaimer": afval_duiding.DISCLAIMER}
     out["context"] = ctx
     return out
+
+
+_AFVAL_BRON_OMSCHRIJVING = {
+    "cbs-": "Gemeentelijke afvalstoffen per provincie en jaar (CBS StatLine 83558NED).",
+    "clo-": "Huishoudelijk afval per inwoner, lange tijdreeks (Compendium voor de Leefomgeving).",
+    "afvalfonds-": "Recyclingpercentages per verpakkingsmateriaal (Afvalfonds Verpakkingen/Verpact).",
+    "lma-rws-": "Nationale afvalcijfers per Euralcode en verwerking (LMA/RWS, openbaar).",
+}
+
+
+def _afval_bron_omschrijving(bron_id: str) -> str:
+    for prefix, tekst in _AFVAL_BRON_OMSCHRIJVING.items():
+        if bron_id.startswith(prefix):
+            return tekst
+    return ""
+
+
+@app.get("/api/afval/bronnen")
+def api_afval_bronnen():
+    if not Path(_afvaldb_path()).exists():
+        raise HTTPException(status_code=503, detail="Afval-database nog niet gevuld")
+    con = afvaldb_store.open_readonly(_afvaldb_path())
+    try:
+        rows = afvaldb_store.bronnen(con)
+    finally:
+        if hasattr(con, "close"):
+            con.close()
+    for r in rows:
+        r["omschrijving"] = _afval_bron_omschrijving(r["bron_id"])
+    return rows
+
+
+class AfvalChatRequest(BaseModel):
+    vraag: str
+
+
+@app.post("/api/afval/chat")
+def api_afval_chat(req: AfvalChatRequest):
+    llm = _config.get("leefomgevinglab", {}).get("llm", {})
+    return afval_chat.beantwoord(
+        req.vraag, _afvaldb_path(),
+        llm_base_url=llm.get("base_url", "http://localhost:8080/v1"),
+        model=llm.get("model", "qwen2.5-32b"),
+        timeout_s=llm.get("timeout_s", 60),
+    )

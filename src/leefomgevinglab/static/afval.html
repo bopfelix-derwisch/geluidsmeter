@@ -13,6 +13,19 @@
   header h1 { margin: 0; font-size: 18px; }
   header p { margin: 4px 0 0; font-size: 12px; opacity: .85; }
   .wrap { display: flex; height: calc(100vh - 62px); }
+  aside.left { width: 300px; padding: 14px; box-sizing: border-box; overflow-y: auto; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
+  aside.left h2 { font-size: 13px; margin: 0 0 6px; color: #0b4f6c; }
+  .bronitem { font-size: 12px; margin-bottom: 8px; }
+  .bronitem .lic { color: #789; }
+  .chat { margin-top: 14px; display: flex; flex-direction: column; flex: 1; min-height: 220px; }
+  #chatlog { flex: 1; overflow-y: auto; border: 1px solid #e3e3e3; border-radius: 6px; padding: 8px; font-size: 13px; background: #fafcfd; }
+  #chatlog .q { font-weight: 600; margin-top: 8px; }
+  #chatlog .a { white-space: pre-wrap; margin: 2px 0 4px; }
+  #chatlog details { font-size: 11px; color: #789; }
+  #chatlog pre { white-space: pre-wrap; background: #eef3f5; padding: 6px; border-radius: 4px; }
+  .chatbar { display: flex; gap: 6px; margin-top: 8px; }
+  .chatbar input { flex: 1; padding: 6px; }
+  @media (max-width: 900px) { .wrap { flex-direction: column; height: auto; } aside.left, aside { width: auto; } #map { height: 60vh; } }
   #map { flex: 1; }
   aside { width: 340px; padding: 14px; box-sizing: border-box; overflow-y: auto; border-left: 1px solid #ddd; }
   label { display: block; font-size: 12px; margin: 10px 0 3px; font-weight: 600; }
@@ -52,6 +65,19 @@
   <p id="bron">Laden…</p>
 </header>
 <div class="wrap">
+  <aside class="left">
+    <h2>Brondata</h2>
+    <div style="font-size:12px;color:#789;margin-bottom:8px">Deze cijfers komen uit open bronnen:</div>
+    <div id="bronnen">Laden…</div>
+    <div class="chat">
+      <h2>Vraag het de data</h2>
+      <div id="chatlog"></div>
+      <div class="chatbar">
+        <input id="chatinput" placeholder="bijv. hoeveel GFT in Flevoland in 2020?" />
+        <button id="chatsend">Vraag</button>
+      </div>
+    </div>
+  </aside>
   <div id="map"></div>
   <aside>
     <label>Afvalstroom</label>
@@ -252,6 +278,70 @@ document.getElementById("modal").addEventListener("click", e => {
 });
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
 
+async function laadBronnen() {
+  const box = document.getElementById("bronnen");
+  try {
+    const bronnen = await (await fetch("/api/afval/bronnen")).json();
+    box.innerHTML = "";
+    bronnen.forEach(b => {
+      const d = document.createElement("div");
+      d.className = "bronitem";
+      const naam = document.createElement("b"); naam.textContent = b.naam;
+      const oms = document.createElement("div"); oms.textContent = b.omschrijving || "";
+      const lic = document.createElement("div"); lic.className = "lic";
+      lic.textContent = `Licentie: ${b.licentie} · ${b.type}`;
+      d.appendChild(naam); d.appendChild(oms); d.appendChild(lic);
+      if (b.url) {
+        const a = document.createElement("a");
+        a.href = b.url; a.target = "_blank"; a.rel = "noopener";
+        a.textContent = "bron ↗"; a.style.fontSize = "11px";
+        d.appendChild(a);
+      }
+      box.appendChild(d);
+    });
+  } catch (e) { box.textContent = "Brondata niet beschikbaar."; }
+}
+
+async function stelVraag() {
+  const inp = document.getElementById("chatinput");
+  const vraag = inp.value.trim();
+  if (!vraag) return;
+  const log = document.getElementById("chatlog");
+  const q = document.createElement("div"); q.className = "q"; q.textContent = "▸ " + vraag;
+  const a = document.createElement("div"); a.className = "a"; a.textContent = "denkt na…";
+  log.appendChild(q); log.appendChild(a); log.scrollTop = log.scrollHeight;
+  inp.value = "";
+  try {
+    const r = await fetch("/api/afval/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vraag })
+    });
+    const d = await r.json();
+    a.textContent = d.antwoord || "Geen antwoord.";
+    if (d.sql) {
+      const det = document.createElement("details");
+      const sum = document.createElement("summary"); sum.textContent = "toon query";
+      const pre = document.createElement("pre"); pre.textContent = d.sql;
+      det.appendChild(sum); det.appendChild(pre);
+      log.insertBefore(det, a.nextSibling);
+    }
+    if (d.beschikbaar && d.bron) {
+      const src = document.createElement("div");
+      src.className = "lic"; src.style.fontSize = "11px";
+      src.textContent = `${d.bron} — ${d.disclaimer || ""}`;
+      log.appendChild(src);
+    }
+    if (!d.beschikbaar && d.vangnet) {
+      const v = document.createElement("div"); v.className = "lic"; v.style.fontSize = "11px";
+      v.textContent = d.vangnet; log.appendChild(v);
+    }
+  } catch (e) { a.textContent = "Chatbot tijdelijk niet beschikbaar."; }
+  log.scrollTop = log.scrollHeight;
+}
+
+document.getElementById("chatsend").addEventListener("click", stelVraag);
+document.getElementById("chatinput").addEventListener("keydown", e => { if (e.key === "Enter") stelVraag(); });
+laadBronnen();
 map.on("load", loadMeta);
 </script>
 </body>

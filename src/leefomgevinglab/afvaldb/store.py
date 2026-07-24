@@ -71,3 +71,24 @@ def forecast_rows(con, regio_code, afvalstroom_canoniek) -> list[dict]:
         f"SELECT {', '.join(_FC_COLS)} FROM forecast WHERE regio_code = ? "
         "AND afvalstroom_canoniek = ? ORDER BY jaar", [regio_code, afvalstroom_canoniek]).fetchall()
     return [dict(zip(_FC_COLS, r)) for r in rows]
+
+
+def open_readonly(db_path: str) -> duckdb.DuckDBPyConnection:
+    return duckdb.connect(db_path, read_only=True, config={"enable_external_access": "false"})
+
+
+def bronnen(con) -> list[dict]:
+    cols = ["bron_id", "naam", "url", "licentie", "type", "opgehaald_op"]
+    rows = con.execute(f"SELECT {', '.join(cols)} FROM bron ORDER BY bron_id").fetchall()
+    out = []
+    for r in rows:
+        d = dict(zip(cols, r))
+        d["opgehaald_op"] = None if d["opgehaald_op"] is None else str(d["opgehaald_op"])
+        out.append(d)
+    return out
+
+
+def run_select(con, sql: str) -> list[dict]:
+    cur = con.execute(sql)
+    names = [c[0] for c in cur.description]
+    return [dict(zip(names, row)) for row in cur.fetchall()]
