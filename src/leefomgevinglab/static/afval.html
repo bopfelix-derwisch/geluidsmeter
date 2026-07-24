@@ -291,7 +291,7 @@ async function laadBronnen() {
       const lic = document.createElement("div"); lic.className = "lic";
       lic.textContent = `Licentie: ${b.licentie} · ${b.type}`;
       d.appendChild(naam); d.appendChild(oms); d.appendChild(lic);
-      if (b.url) {
+      if (b.url && /^https?:\/\//i.test(b.url)) {
         const a = document.createElement("a");
         a.href = b.url; a.target = "_blank"; a.rel = "noopener";
         a.textContent = "bron ↗"; a.style.fontSize = "11px";

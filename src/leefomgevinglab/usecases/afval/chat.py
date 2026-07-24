@@ -125,7 +125,11 @@ def beantwoord(vraag: str, db_path: str, llm_base_url: str, model: str,
         return {**base, "antwoord": None, "sql": None, "rijen": [], "beschikbaar": False}
     con = store.open_readonly(db_path)
     try:
-        grounding = bouw_grounding(con)
+        try:
+            grounding = bouw_grounding(con)
+        except Exception:
+            return {**base, "antwoord": "De afvaldatabase is (nog) niet leesbaar.",
+                    "sql": None, "rijen": [], "beschikbaar": False}
         try:
             ruwe = genereer_sql(vraag, grounding, llm_base_url=llm_base_url, model=model, timeout_s=timeout_s)
         except ConnectorError:
