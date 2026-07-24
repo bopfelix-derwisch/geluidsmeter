@@ -7,7 +7,7 @@ UITV = "https://x/uitv/v3"
 REF = "http://x/werkzaamheden/id/concept/DakkapelPlaatsen"
 
 
-def _conn(tmp_path, capture, ret):
+def _conn(tmp_path, capture, ret, rtr_key="RTRKEY", uitv_key="UITVKEY"):
     class _D(DsoConnector):
         def post_json(self, url, json_body=None, headers=None):
             capture["url"] = url
@@ -15,21 +15,23 @@ def _conn(tmp_path, capture, ret):
             capture["headers"] = headers
             return ret
 
-    return _D(rtr_base_url=RTR, uitvoeren_base_url=UITV, api_key="K", cache_dir=str(tmp_path))
+    return _D(rtr_base_url=RTR, uitvoeren_base_url=UITV,
+              rtr_api_key=rtr_key, uitvoeren_api_key=uitv_key, cache_dir=str(tmp_path))
 
 
-def test_bepaal_typeringen(tmp_path):
+def test_bepaal_typeringen_gebruikt_rtr_key(tmp_path):
     cap = {}
     c = _conn(tmp_path, cap, [{"functioneleStructuurRef": REF, "regelbeheerobjecten": ["Conclusie"]}])
     out = c.bepaal_typeringen([REF], (155000.0, 463000.0))
     assert cap["url"] == f"{RTR}/werkzaamheden/_bepaalRegelbeheerobjectTyperingen"
     assert cap["body"]["functioneleStructuurRefs"] == [REF]
     assert cap["body"]["_geo"] == {"intersects": {"type": "Point", "coordinates": [155000.0, 463000.0]}}
-    assert cap["headers"]["x-api-key"] == "K"
+    # RTR gebruikt de RTR-key (kan productie zijn), niet de Uitvoeren-key
+    assert cap["headers"]["x-api-key"] == "RTRKEY"
     assert out[0]["regelbeheerobjecten"] == ["Conclusie"]
 
 
-def test_bepaal_indieningsvereisten_sets_crs_and_antwoorden(tmp_path):
+def test_bepaal_indieningsvereisten_gebruikt_uitvoeren_key_en_crs(tmp_path):
     cap = {}
     c = _conn(tmp_path, cap, [{"indieningsvereisten": []}])
     c.bepaal_indieningsvereisten([REF], (121000.0, 487000.0))
@@ -37,12 +39,14 @@ def test_bepaal_indieningsvereisten_sets_crs_and_antwoorden(tmp_path):
     assert cap["body"]["functioneleStructuurRefs"] == [{"functioneleStructuurRef": REF, "antwoorden": []}]
     assert cap["body"]["_geo"]["intersects"]["coordinates"] == [121000.0, 487000.0]
     assert cap["headers"]["Content-Crs"] == "EPSG:28992"
-    assert cap["headers"]["x-api-key"] == "K"
+    # Uitvoeren gebruikt de Uitvoeren-key (pre), niet de RTR-key
+    assert cap["headers"]["x-api-key"] == "UITVKEY"
 
 
-def test_without_key_raises(tmp_path):
-    c = DsoConnector(rtr_base_url=RTR, uitvoeren_base_url=UITV, api_key=None, cache_dir=str(tmp_path))
+def test_ontbrekende_key_per_service_raises(tmp_path):
+    # RTR-key ontbreekt -> alleen de RTR-call faalt; Uitvoeren blijft werken
+    c = _conn(tmp_path, {}, [{"ok": True}], rtr_key=None, uitv_key="UITVKEY")
     with pytest.raises(ConnectorError):
         c.bepaal_typeringen([REF], (1.0, 2.0))
-    with pytest.raises(ConnectorError):
-        c.bepaal_indieningsvereisten([REF], (1.0, 2.0))
+    # Uitvoeren met geldige key faalt niet op de key-check
+    c.bepaal_indieningsvereisten([REF], (1.0, 2.0))

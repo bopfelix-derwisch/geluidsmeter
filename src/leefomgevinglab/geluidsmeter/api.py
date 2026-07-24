@@ -416,12 +416,23 @@ def viewer_page():
     return viewer_html.read_text()
 
 
+def _dso_env_key(env: str) -> str | None:
+    """Productie- of pre-key uit .env op basis van de gekozen omgeving."""
+    return os.environ.get("DSO_API_KEY_PROD") if env == "prod" else os.environ.get("DSO_API_KEY")
+
+
+def _dso_base_url(dso: dict, endpoint: str, env: str) -> str:
+    """Base-URL voor een endpoint (zoek|rtr|uitvoeren) in de gekozen omgeving (pre|prod)."""
+    return dso.get(env, {}).get(f"{endpoint}_base_url", "")
+
+
 def _zoek_connector() -> ZoekConnector:
     ll = _config.get("leefomgevinglab", {})
     dso = ll.get("dso", {})
+    env = dso.get("zoek_env", "pre")
     return ZoekConnector(
-        base_url=dso.get("zoek_base_url", ""),
-        api_key=os.environ.get("DSO_API_KEY"),
+        base_url=_dso_base_url(dso, "zoek", env),
+        api_key=_dso_env_key(env),
         api_key_header=dso.get("api_key_header", "x-api-key"),
         cache_dir=ll.get("cache_dir", "/tmp/llab_cache"),
     )
@@ -430,10 +441,13 @@ def _zoek_connector() -> ZoekConnector:
 def _dso_connector() -> DsoConnector:
     ll = _config.get("leefomgevinglab", {})
     dso = ll.get("dso", {})
+    rtr_env = dso.get("rtr_env", "pre")
+    uitv_env = dso.get("uitvoeren_env", "pre")
     return DsoConnector(
-        rtr_base_url=dso.get("rtr_base_url", ""),
-        uitvoeren_base_url=dso.get("uitvoeren_base_url", ""),
-        api_key=os.environ.get("DSO_API_KEY"),
+        rtr_base_url=_dso_base_url(dso, "rtr", rtr_env),
+        uitvoeren_base_url=_dso_base_url(dso, "uitvoeren", uitv_env),
+        rtr_api_key=_dso_env_key(rtr_env),
+        uitvoeren_api_key=_dso_env_key(uitv_env),
         api_key_header=dso.get("api_key_header", "x-api-key"),
         cache_dir=ll.get("cache_dir", "/tmp/llab_cache"),
     )

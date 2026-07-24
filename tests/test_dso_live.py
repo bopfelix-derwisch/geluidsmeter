@@ -23,6 +23,7 @@ def test_live_dakkapel_keten(tmp_path):
     assert any(k["urn"] == "DakkapelPlaatsen" for k in kand)
 
     ref = next(k["functioneleStructuurRef"] for k in kand if k["urn"] == "DakkapelPlaatsen")
-    dso = DsoConnector(rtr_base_url=RTR, uitvoeren_base_url=UITVOEREN, api_key=key, cache_dir=str(tmp_path))
+    dso = DsoConnector(rtr_base_url=RTR, uitvoeren_base_url=UITVOEREN,
+                       rtr_api_key=key, uitvoeren_api_key=key, cache_dir=str(tmp_path))
     typ = dso.bepaal_typeringen([ref], (155000.0, 463000.0))
     assert typ and "regelbeheerobjecten" in typ[0]
