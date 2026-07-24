@@ -37,3 +37,10 @@ def test_open_readonly_weigert_schrijven(tmp_path):
     con = store.open_readonly(p)
     with pytest.raises(duckdb.Error):
         con.execute("DELETE FROM afval_feit")
+
+
+def test_open_readonly_blokkeert_bestandstoegang(tmp_path):
+    p = _seed(tmp_path)
+    con = store.open_readonly(p)
+    with pytest.raises(duckdb.Error):
+        con.execute("SELECT content FROM read_text('/etc/hostname')")

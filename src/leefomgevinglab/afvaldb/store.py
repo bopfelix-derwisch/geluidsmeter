@@ -74,7 +74,7 @@ def forecast_rows(con, regio_code, afvalstroom_canoniek) -> list[dict]:
 
 
 def open_readonly(db_path: str) -> duckdb.DuckDBPyConnection:
-    return duckdb.connect(db_path, read_only=True)
+    return duckdb.connect(db_path, read_only=True, config={"enable_external_access": "false"})
 
 
 def bronnen(con) -> list[dict]:

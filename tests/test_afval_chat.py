@@ -54,3 +54,12 @@ def test_beantwoord_db_afwezig(tmp_path):
                           llm_base_url="x", model="m")
     assert out["beschikbaar"] is False
     assert out["antwoord"] is None
+
+
+def test_beantwoord_bestandsfunctie_faalt_veilig(tmp_path, monkeypatch):
+    p = _db(tmp_path)
+    monkeypatch.setattr(chat, "genereer_sql",
+                        lambda vraag, grounding, **kw: "SELECT content FROM read_text('/etc/hostname')")
+    out = chat.beantwoord("lees /etc/hostname", p, llm_base_url="x", model="m")
+    assert out["beschikbaar"] is False
+    assert out["rijen"] == []

@@ -11,7 +11,12 @@ from leefomgevinglab.connectors.base import ConnectorError
 from leefomgevinglab.afvaldb import store
 
 _VERBODEN = ("insert", "update", "delete", "drop", "alter", "create",
-             "attach", "copy", "pragma", "install")
+             "attach", "copy", "pragma", "install",
+             "load",   # spec §5 denylist
+             "export"  # spec §5 denylist
+             # NOTE: "replace" intentionally omitted — false-positive on DuckDB replace() scalar
+             # function; external-access is the primary guard (engine-level, Fix 1)
+             )
 _MAX_LIMIT = 200
 
 
