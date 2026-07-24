@@ -115,13 +115,22 @@ leefomgevinglab:
     max_regelingen: 3
     max_regelteksten: 5
   dso:
-    # DSO Toepasbare Regels (pre-productie). Live geverifieerd 2026-06-22 met DSO_API_KEY.
-    # Keys werken alleen op service.pre.* (productie geeft 401). Header x-api-key.
+    # DSO Toepasbare Regels. Omgeving per service instelbaar (pre|prod); de key komt uit .env:
+    # DSO_API_KEY = pre-key, DSO_API_KEY_PROD = productie-key. Header x-api-key.
     # Geometrie in RD/EPSG:28992. Zie spec 2026-06-22-dso-regels-resolver-design.md.
+    # NB: RTR staat op productie; Zoek en Uitvoeren blijven pre (bewuste gemengde keten).
     api_key_header: "x-api-key"
-    zoek_base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/zoekinterface/v2"
-    rtr_base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/samengestelderegistratietoepasbareregelsservices/v2"
-    uitvoeren_base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/toepasbareregelsuitvoerenservices/v3"
+    zoek_env: "pre"
+    rtr_env: "prod"
+    uitvoeren_env: "pre"
+    pre:
+      zoek_base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/zoekinterface/v2"
+      rtr_base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/samengestelderegistratietoepasbareregelsservices/v2"
+      uitvoeren_base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/toepasbareregelsuitvoerenservices/v3"
+    prod:
+      zoek_base_url: "https://service.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/zoekinterface/v2"
+      rtr_base_url: "https://service.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/samengestelderegistratietoepasbareregelsservices/v2"
+      uitvoeren_base_url: "https://service.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/toepasbareregelsuitvoerenservices/v3"
   llm:
     base_url: "http://localhost:8080/v1"
     model: "qwen2.5-32b"
