@@ -8,66 +8,106 @@
 <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <style>
-  body { margin: 0; font-family: system-ui, sans-serif; color: #1a1a1a; }
-  header { padding: 12px 16px; background: #0b4f6c; color: #fff; }
-  header h1 { margin: 0; font-size: 18px; }
-  header p { margin: 4px 0 0; font-size: 12px; opacity: .85; }
-  .wrap { display: flex; height: calc(100vh - 62px); }
-  aside.left { width: 300px; padding: 14px; box-sizing: border-box; overflow-y: auto; border-right: 1px solid #ddd; display: flex; flex-direction: column; }
-  aside.left h2 { font-size: 13px; margin: 0 0 6px; color: #0b4f6c; }
-  .bronitem { font-size: 12px; margin-bottom: 8px; }
-  .bronitem .lic { color: #789; }
-  .chat { margin-top: 14px; display: flex; flex-direction: column; flex: 1; min-height: 220px; }
-  #chatlog { flex: 1; overflow-y: auto; border: 1px solid #e3e3e3; border-radius: 6px; padding: 8px; font-size: 13px; background: #fafcfd; }
-  #chatlog .q { font-weight: 600; margin-top: 8px; }
+  * { box-sizing: border-box; }
+  :root {
+    --bg: #080c14; --panel: #0d1b2a; --panel2: #0a1220; --border: #1a3a5c;
+    --accent: #2ecc8f; --accent2: #26a69a; --text: #e0e6ed; --muted: #8aa0b2; --dim: #5b7385;
+  }
+  body { margin: 0; height: 100vh; display: flex; flex-direction: column;
+    background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; }
+  a { color: inherit; text-decoration: none; }
+
+  header { background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 12px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  header .mark { width: 22px; height: 22px; border-radius: 6px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2)); flex: none; }
+  header h1 { font-size: 15px; color: var(--accent); white-space: nowrap; font-weight: 700; }
+  .badge { font-size: 10px; padding: 2px 9px; border-radius: 10px; white-space: nowrap;
+    border: 1px solid var(--border); color: var(--muted); }
+  header nav { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+  header nav a { font-size: 12px; color: var(--muted); padding: 4px 10px; border-radius: 12px; border: 1px solid transparent; }
+  header nav a:hover { border-color: var(--border); color: var(--accent); }
+  .subbar { padding: 6px 20px; background: var(--panel2); border-bottom: 1px solid var(--border);
+    font-size: 12px; color: var(--muted); }
+
+  .wrap { flex: 1; display: flex; min-height: 0; }
+  aside.left { width: 300px; padding: 14px; overflow-y: auto; border-right: 1px solid var(--border);
+    background: var(--panel); display: flex; flex-direction: column; }
+  aside { width: 340px; padding: 14px; overflow-y: auto; border-left: 1px solid var(--border); background: var(--panel); }
+  aside.left h2, .chat h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin: 0 0 8px; color: var(--dim); }
+  .bronitem { font-size: 12px; margin-bottom: 10px; }
+  .bronitem b { color: #eafff6; }
+  .bronitem .lic { color: var(--dim); }
+  .bronitem a { color: #4fc3f7; }
+  .chat { margin-top: 16px; display: flex; flex-direction: column; flex: 1; min-height: 220px; }
+  #chatlog { flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 8px;
+    font-size: 13px; background: var(--panel2); }
+  #chatlog .q { font-weight: 600; margin-top: 8px; color: var(--accent); }
   #chatlog .a { white-space: pre-wrap; margin: 2px 0 4px; }
-  #chatlog details { font-size: 11px; color: #789; }
-  #chatlog pre { white-space: pre-wrap; background: #eef3f5; padding: 6px; border-radius: 4px; }
+  #chatlog details { font-size: 11px; color: var(--muted); }
+  #chatlog pre { white-space: pre-wrap; background: #04140d; color: var(--text); padding: 6px; border-radius: 4px; }
+  #chatlog .lic { color: var(--dim); }
   .chatbar { display: flex; gap: 6px; margin-top: 8px; }
-  .chatbar input { flex: 1; padding: 6px; }
-  @media (max-width: 900px) { .wrap { flex-direction: column; height: auto; } aside.left, aside { width: auto; } #map { height: 60vh; } }
+  .chatbar input { flex: 1; padding: 7px 8px; background: var(--panel2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; }
+  .chatbar input::placeholder { color: var(--dim); }
   #map { flex: 1; }
-  aside { width: 340px; padding: 14px; box-sizing: border-box; overflow-y: auto; border-left: 1px solid #ddd; }
-  label { display: block; font-size: 12px; margin: 10px 0 3px; font-weight: 600; }
-  select { width: 100%; padding: 6px; }
-  .legend { margin-top: 12px; font-size: 12px; }
-  .legend i { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: middle; }
-  #trend { margin-top: 14px; }
-  #trend h3 { font-size: 14px; margin: 8px 0; }
+  label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin: 12px 0 3px; color: var(--muted); }
+  select { width: 100%; padding: 7px; background: var(--panel2); color: var(--text); border: 1px solid var(--border); border-radius: 6px; }
+  .legend { margin-top: 14px; font-size: 12px; color: var(--muted); }
+  .legend i { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: middle; border-radius: 2px; }
+  #trend { margin-top: 16px; }
+  #trend h3 { font-size: 14px; margin: 8px 0; color: #eafff6; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
-  th, td { border-bottom: 1px solid #eee; padding: 3px 4px; text-align: right; }
+  th, td { border-bottom: 1px solid var(--border); padding: 4px 5px; text-align: right; }
+  th { color: var(--dim); font-weight: 600; }
   th:first-child, td:first-child { text-align: left; }
-  button { margin-top: 10px; padding: 8px 10px; background: #0b4f6c; color: #fff; border: 0; border-radius: 4px; cursor: pointer; }
-  .bron { margin-top: 14px; font-size: 11px; color: #666; }
+  button { margin-top: 10px; padding: 8px 12px; border: 0; border-radius: 6px; cursor: pointer;
+    font-weight: 700; color: #042; background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+  button:hover { filter: brightness(1.08); }
+  .bron { margin-top: 16px; font-size: 11px; color: var(--dim); }
   #trend button { width: 100%; }
+  @media (max-width: 900px) { .wrap { flex-direction: column; } body { height: auto; }
+    aside.left, aside { width: auto; border: 0; border-bottom: 1px solid var(--border); } #map { height: 60vh; } }
 
   /* Centrale AI-duiding-modal */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(8,32,44,.55);
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6);
     display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
   .modal-overlay[hidden] { display: none; }
-  .modal-card { background: #fff; border-radius: 12px; max-width: 560px; width: 100%;
-    max-height: 88vh; overflow-y: auto; padding: 22px 24px; box-shadow: 0 18px 50px rgba(0,0,0,.35); position: relative; }
-  .modal-card h2 { margin: 0 28px 4px 0; font-size: 19px; color: #0b4f6c; }
-  .modal-card .sub { font-size: 12px; color: #789; margin-bottom: 14px; }
-  .modal-close { position: absolute; top: 12px; right: 14px; background: none; color: #789;
+  .modal-card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; max-width: 560px; width: 100%;
+    max-height: 88vh; overflow-y: auto; padding: 22px 24px; box-shadow: 0 18px 50px rgba(0,0,0,.5); position: relative; color: var(--text); }
+  .modal-card h2 { margin: 0 28px 4px 0; font-size: 19px; color: var(--accent); }
+  .modal-card .sub { font-size: 12px; color: var(--dim); margin-bottom: 14px; }
+  .modal-close { position: absolute; top: 12px; right: 14px; background: none; color: var(--muted);
     border: 0; font-size: 26px; line-height: 1; cursor: pointer; padding: 0; margin: 0; }
   .stats { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 13px; margin-bottom: 14px; }
-  .stats dt { color: #567; font-weight: 600; }
-  .stats dd { margin: 0; text-align: left; }
-  .duiding-text { font-size: 14px; line-height: 1.5; background: #f3f7f9; border-left: 3px solid #0b4f6c;
+  .stats dt { color: var(--muted); font-weight: 600; }
+  .stats dd { margin: 0; text-align: left; color: var(--text); }
+  .duiding-text { font-size: 14px; line-height: 1.5; background: var(--panel2); border-left: 3px solid var(--accent);
     padding: 12px 14px; border-radius: 6px; white-space: pre-wrap; min-height: 40px; }
-  .modal-bron { margin-top: 12px; font-size: 11px; color: #789; }
+  .modal-bron { margin-top: 12px; font-size: 11px; color: var(--dim); }
 </style>
 </head>
 <body>
 <header>
-  <h1>Afval &amp; circulariteit per provincie</h1>
-  <p id="bron">Laden…</p>
+  <div class="mark"></div>
+  <h1>LeefomgevingLab</h1>
+  <span class="badge">Afval &amp; circulariteit</span>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/viewer">REV-viewer</a>
+    <a href="/chatbot">Chatbot</a>
+    <a href="/datavraag">Datavraag</a>
+    <a href="/semantiek">Semantiek</a>
+    <a href="/public">Geluidsmeter</a>
+    <a href="/roadmap">Roadmap</a>
+  </nav>
 </header>
+<div class="subbar" id="bron">Laden…</div>
 <div class="wrap">
   <aside class="left">
     <h2>Brondata</h2>
-    <div style="font-size:12px;color:#789;margin-bottom:8px">Deze cijfers komen uit open bronnen:</div>
+    <div style="font-size:12px;color:#8aa0b2;margin-bottom:8px">Deze cijfers komen uit open bronnen:</div>
     <div id="bronnen">Laden…</div>
     <div class="chat">
       <h2>Vraag het de data</h2>
@@ -111,7 +151,7 @@ function forecastSVG(historie, forecast) {
   const H = historie.map(p => ({ x: p.jaar, y: p.hoeveelheid_kton }));
   const F = forecast.map(p => ({ x: p.jaar, y: p.verwacht, lo: p.ondergrens, hi: p.bovengrens }));
   const pts = H.concat(F.map(p => ({ x: p.x, y: p.y })));
-  if (pts.length < 2) return "<p style='font-size:12px;color:#789'>Onvoldoende data voor een doorkijk.</p>";
+  if (pts.length < 2) return "<p style='font-size:12px;color:#8aa0b2'>Onvoldoende data voor een doorkijk.</p>";
   const W = 500, Hh = 160, pad = 30;
   const xs = pts.map(p => p.x), ys = pts.map(p => p.y).concat(F.map(p => p.hi));
   const xmin = Math.min(...xs), xmax = Math.max(...xs), ymin = 0, ymax = Math.max(...ys) * 1.1 || 1;
@@ -122,19 +162,19 @@ function forecastSVG(historie, forecast) {
   if (F.length) {
     const top = F.map(p => `${sx(p.x).toFixed(1)},${sy(p.hi).toFixed(1)}`);
     const bot = F.slice().reverse().map(p => `${sx(p.x).toFixed(1)},${sy(p.lo).toFixed(1)}`);
-    band = `<polygon points="${top.concat(bot).join(" ")}" fill="#0b4f6c" opacity="0.12"/>`;
+    band = `<polygon points="${top.concat(bot).join(" ")}" fill="#2ecc8f" opacity="0.12"/>`;
   }
   const fStart = H.length ? [H[H.length - 1], ...F] : F;
   const fLine = F.length ? line(fStart.map(p => ({ x: p.x, y: p.y }))) : "";
   return `<svg viewBox="0 0 ${W} ${Hh}" width="100%" style="margin-top:8px">
     ${band}
-    <path d="${line(H)}" fill="none" stroke="#0b4f6c" stroke-width="2"/>
-    <path d="${fLine}" fill="none" stroke="#0b4f6c" stroke-width="2" stroke-dasharray="5 4"/>
-    <text x="${pad}" y="12" font-size="10" fill="#789">kton — historie (doorgetrokken) + doorkijk (streep) tot ${xmax}</text>
+    <path d="${line(H)}" fill="none" stroke="#2ecc8f" stroke-width="2"/>
+    <path d="${fLine}" fill="none" stroke="#2ecc8f" stroke-width="2" stroke-dasharray="5 4"/>
+    <text x="${pad}" y="12" font-size="10" fill="#8aa0b2">kton — historie (doorgetrokken) + doorkijk (streep) tot ${xmax}</text>
   </svg>`;
 }
 
-const RAMP = ["#f7fbff","#c6dbef","#6baed6","#2171b5","#08306b"];
+const RAMP = ["#123a4f","#155e63","#1a9e78","#2ecc8f","#8affd0"];
 let META = null;
 
 function esc(s) {
@@ -144,12 +184,12 @@ function esc(s) {
 
 const map = new maplibregl.Map({
   container: "map",
-  style: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+  style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
   center: [5.3, 52.1], zoom: 6.3
 });
 
 function color(v, min, max) {
-  if (v === null || v === undefined) return "#e0e0e0";
+  if (v === null || v === undefined) return "#1a2634";
   const t = max > min ? (v - min) / (max - min) : 0;
   return RAMP[Math.min(RAMP.length - 1, Math.floor(t * RAMP.length))];
 }
@@ -266,7 +306,7 @@ async function openDuiding(code, naam, afvalstroom) {
     const f = await (await fetch(`/api/afval/forecast?regio=${encodeURIComponent(code)}&afvalstroom=${encodeURIComponent(afvalstroom)}`)).json();
     document.getElementById("modalChart").innerHTML =
       forecastSVG(f.historie || [], f.forecast || []) +
-      `<div style="font-size:10px;color:#789;margin-top:2px">${esc(f.label || "")}</div>`;
+      `<div style="font-size:10px;color:#8aa0b2;margin-top:2px">${esc(f.label || "")}</div>`;
   } catch (e) { document.getElementById("modalChart").innerHTML = ""; }
   box.textContent = d.duiding || "AI-duiding tijdelijk niet beschikbaar — de cijfers hierboven komen rechtstreeks uit CBS.";
   document.getElementById("modalBron").textContent = `Bron: ${d.bron} — ${d.disclaimer}`;
