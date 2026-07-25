@@ -103,7 +103,7 @@
           <tr><td>Datavraag-chatbot (NL→SPARQL op linked data)</td><td class="st-live">✓ live</td><td><a href="/datavraag">/datavraag</a> · <a href="/poc">/poc</a> · <code>/api/datavraag</code></td><td>eigen REV-LD + Kadaster KKG (SPARQL/GeoSPARQL)</td></tr>
           <tr><td>Geluidsmeter publiek + dashboard</td><td class="st-live">✓ live</td><td><a href="/public">/public</a> · <a href="/dashboard">/dashboard</a></td><td>eigen sensor + RIVM/CVGG</td></tr>
           <tr><td>Afval &amp; circulariteit-dashboard + doorkijk naar 2035 + data-chatbot</td><td class="st-live">✓ live</td><td><a href="/afval">/afval</a> · <code>/api/afval/*</code></td><td>CBS 83558NED + CLO/Afvalfonds/LMA in een canoniek DuckDB-datamodel; Holt-forecast; NL→SQL-chatbot (read-only)</td></tr>
-          <tr><td>Regels-opzoeken (DSO toepasbare regels)</td><td class="st-live">✓ live</td><td><code>/api/regels</code></td><td>DSO ZoekInterface + Samengestelde RTR + Uitvoeren (pre-prod) + Qwen-keuze</td></tr>
+          <tr><td>Regels-opzoeken (DSO toepasbare regels)</td><td class="st-live">✓ live</td><td><code>/api/regels</code></td><td>DSO ZoekInterface + Samengestelde RTR op <strong>productie</strong> (2026-07-25); Uitvoeren best-effort (prod geeft 500, degradeert netjes) + Qwen-keuze</td></tr>
         </tbody>
       </table>
     </section>
@@ -133,7 +133,12 @@
           <tr>
             <td>DSO Registratie Toepasbare Regels</td>
             <td class="st-live">✓ live geïntegreerd</td>
-            <td>Volledige keten live (2026-06-22): vrije tekst → werkzaamheid via de <strong>ZoekInterface</strong>-API (gerankt, met trefwoorden) → lokale <strong>Qwen</strong> kiest de beste match → WGS84→RD/EPSG:28992 → <code>werkzaamheden/_bepaalRegelbeheerobjectTyperingen</code> + best-effort <code>indieningsvereisten/_bepaal</code>. Alles op <strong>pre-productie</strong> (<code>service.pre.*</code>), <code>x-api-key</code>. Gelaagd-degraderend conservatief contract; <code>/api/regels</code> live (smoke-test tegen echte DSO groen).</td>
+            <td>Volledige keten live (2026-06-22): vrije tekst → werkzaamheid via de <strong>ZoekInterface</strong>-API (gerankt, met trefwoorden) → lokale <strong>Qwen</strong> kiest de beste match → WGS84→RD/EPSG:28992 → <code>werkzaamheden/_bepaalRegelbeheerobjectTyperingen</code> + best-effort <code>indieningsvereisten/_bepaal</code>. Sinds <strong>2026-07-25</strong> op <strong>productie</strong> (<code>service.omgevingswet.overheid.nl</code>) via een per-endpoint omgevingsschakelaar (aparte prod-key in <code>.env</code>). Gelaagd-degraderend conservatief contract; <code>/api/regels</code> live.</td>
+          </tr>
+          <tr>
+            <td>DSO Toepasbare Regels — Uitvoeren (indieningsvereisten, productie)</td>
+            <td class="st-block">⚠ prod-500</td>
+            <td>Na de overstap naar productie werken <strong>Zoek</strong> en de <strong>samengestelde RTR</strong> (echte geldende regels), maar <code>indieningsvereisten/_bepaal</code> (v3) geeft consequent een <strong>server-side 500 (ONVERWACHTE_FOUT)</strong> — dezelfde request die op pre een 200 oplevert, over meerdere werkzaamheden en locaties, met én zonder <code>datum</code>. Geen auth-/pad-fout (geen 401/403/404), dus een <strong>storing/gat aan de DSO-productiezijde</strong>. Aanpak: de keten degradeert netjes (status <code>bron_tijdelijk_niet_beschikbaar</code>) en toont bewust <strong>géén oefendata</strong> in productie; de indieningsvereisten verschijnen vanzelf zodra de prod-endpoint werkt. Bevinding 2026-07-25.</td>
           </tr>
           <tr>
             <td>IPLO (kennisbron, RAG)</td>
