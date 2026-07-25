@@ -118,11 +118,11 @@ leefomgevinglab:
     # DSO Toepasbare Regels. Omgeving per service instelbaar (pre|prod); de key komt uit .env:
     # DSO_API_KEY = pre-key, DSO_API_KEY_PROD = productie-key. Header x-api-key.
     # Geometrie in RD/EPSG:28992. Zie spec 2026-06-22-dso-regels-resolver-design.md.
-    # NB: RTR staat op productie; Zoek en Uitvoeren blijven pre (bewuste gemengde keten).
+    # NB: de volledige keten (Zoek + RTR + Uitvoeren) staat op productie.
     api_key_header: "x-api-key"
-    zoek_env: "pre"
+    zoek_env: "prod"
     rtr_env: "prod"
-    uitvoeren_env: "pre"
+    uitvoeren_env: "prod"
     pre:
       zoek_base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/zoekinterface/v2"
       rtr_base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/toepasbare-regels/api/samengestelderegistratietoepasbareregelsservices/v2"
