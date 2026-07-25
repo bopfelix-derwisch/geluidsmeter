@@ -141,6 +141,11 @@
             <td>Na de overstap naar productie werken <strong>Zoek</strong> en de <strong>samengestelde RTR</strong> (echte geldende regels), maar <code>indieningsvereisten/_bepaal</code> (v3) geeft consequent een <strong>server-side 500 (ONVERWACHTE_FOUT)</strong> — dezelfde request die op pre een 200 oplevert, over meerdere werkzaamheden en locaties, met én zonder <code>datum</code>. Geen auth-/pad-fout (geen 401/403/404), dus een <strong>storing/gat aan de DSO-productiezijde</strong>. Aanpak: de keten degradeert netjes (status <code>bron_tijdelijk_niet_beschikbaar</code>) en toont bewust <strong>géén oefendata</strong> in productie; de indieningsvereisten verschijnen vanzelf zodra de prod-endpoint werkt. Bevinding 2026-07-25.</td>
           </tr>
           <tr>
+            <td>DSO Ozon Presenteren — omgevingsplan (productie)</td>
+            <td class="st-live">✓ live (regelingen)</td>
+            <td>Sinds <strong>2026-07-25</strong> op <strong>productie</strong>: bij een kaartprik toont de chatbot betrouwbaar <strong>welke regelingen hier gelden</strong> (bv. Omgevingsplan gemeente Amsterdam + Omgevingsverordening NH2022 + Waterschapsverordening AGV). Pre gaf 503 (instabiel). <strong>Vervolg-spike (artikel-niveau):</strong> <em>welke planregels/artikelen</em> raken de exacte plek is nog niet betrouwbaar — de punt-query <code>regeltekstannotaties/_zoek</code> gaf 0 op testpunten (ook op het tijdelijk deel). Het annotatiemodel is gelaagd (<code>regelteksten</code> · <code>regelsVoorIedereen</code> · <code>activiteiten</code> · <code>omgevingsnormen</code> · <code>locaties</code>, met <code>geldigOp</code>); dat pad moet nog uitgezocht worden voordat we artikeltekst tonen.</td>
+          </tr>
+          <tr>
             <td>IPLO (kennisbron, RAG)</td>
             <td class="st-block">⚠ scrapen</td>
             <td>Pagina's zijn script-zwaar; naïeve tekst-extractie sloeg de hele body over (nu robuuste strip). Gedocumenteerde URL's gaven 404 — bron-URL's moeten geverifieerd en onderhouden worden.</td>

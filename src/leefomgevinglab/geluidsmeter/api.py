@@ -456,9 +456,10 @@ def _dso_connector() -> DsoConnector:
 def _ozon_connector() -> OzonConnector:
     ll = _config.get("leefomgevinglab", {})
     ozon = ll.get("ozon", {})
+    env = ozon.get("environment", "pre")
     return OzonConnector(
-        base_url=ozon.get("base_url", ""),
-        api_key=os.environ.get("DSO_API_KEY"),
+        base_url=ozon.get(env, {}).get("base_url", ""),
+        api_key=_dso_env_key(env),
         api_key_header=ozon.get("api_key_header", "x-api-key"),
         cache_dir=ll.get("cache_dir", "/tmp/llab_cache"),
     )

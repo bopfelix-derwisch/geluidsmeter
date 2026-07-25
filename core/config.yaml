@@ -109,11 +109,17 @@ leefomgevinglab:
       - "begin_geldigheid"
       - "tijdstip_registratie"
   ozon:
-    # DSO Ozon Omgevingsdocument Presenteren v8 (pre-productie; x-api-key; RD via Content-Crs OGC-URI).
-    base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/omgevingsdocumenten/api/presenteren/v8"
+    # DSO Ozon Omgevingsdocument Presenteren v8 (x-api-key; RD via Content-Crs OGC-URI).
+    # Omgeving instelbaar (pre|prod); prod gebruikt DSO_API_KEY_PROD uit .env (zelfde helper als DSO).
+    # NB: 'welke regelingen gelden hier' werkt betrouwbaar op prod; artikel-niveau is een vervolg-spike.
     api_key_header: "x-api-key"
+    environment: "prod"
     max_regelingen: 3
     max_regelteksten: 5
+    pre:
+      base_url: "https://service.pre.omgevingswet.overheid.nl/publiek/omgevingsdocumenten/api/presenteren/v8"
+    prod:
+      base_url: "https://service.omgevingswet.overheid.nl/publiek/omgevingsdocumenten/api/presenteren/v8"
   dso:
     # DSO Toepasbare Regels. Omgeving per service instelbaar (pre|prod); de key komt uit .env:
     # DSO_API_KEY = pre-key, DSO_API_KEY_PROD = productie-key. Header x-api-key.

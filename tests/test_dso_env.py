@@ -45,3 +45,15 @@ def test_env_key_helper(monkeypatch):
     monkeypatch.setenv("DSO_API_KEY_PROD", "PROD_KEY")
     assert api._dso_env_key("prod") == "PROD_KEY"
     assert api._dso_env_key("pre") == "PRE_KEY"
+
+
+def test_ozon_op_prod(monkeypatch):
+    api._config = {"leefomgevinglab": {"cache_dir": "/tmp/llab_test_cache", "ozon": {
+        "api_key_header": "x-api-key", "environment": "prod",
+        "pre": {"base_url": "https://pre/presenteren/v8"},
+        "prod": {"base_url": "https://prod/presenteren/v8"}}}}
+    monkeypatch.setenv("DSO_API_KEY", "PRE_KEY")
+    monkeypatch.setenv("DSO_API_KEY_PROD", "PROD_KEY")
+    o = api._ozon_connector()
+    assert o.base_url == "https://prod/presenteren/v8"
+    assert o.api_key == "PROD_KEY"
