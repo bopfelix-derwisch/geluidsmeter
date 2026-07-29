@@ -1,67 +1,129 @@
-# Geluidsmeter
+# LeefomgevingLab
 
-Lokaal geluidsprofiel meten op een vaste locatie (Jetson AGX Orin / orin3). Privacyvriendelijke features, geo-informatie als uitvoer, publicatie via Portolan/STAC.
+**Een BALO-proeftuin: een edge geo-lab op Jetson AGX Orin dat toepassingen bouwt bovenop echte, aanroepbare open data en API's van de leefomgeving.**
 
-**⚠️ Prototype — indicatief, niet juridisch bruikbaar.**
+> ⚠️ **Experimenteel — persoonlijk micro-innovatielab.** Indicatief, geen operationeel overheidssysteem en geen juridisch oordeel. In dezelfde lijn als WaterLab en de geluidsmeter waar dit uit is gegroeid.
 
-## Architectuur
+**Live demo:** https://leefomgevinglab.felixisfelix.com
+
+De lab bouwt *toepassingen* (viewers, dashboards, chatbots) als afnemer/verrijker van de echte voorzieningen (DSO, REV/PDOK, CBS, RIVM …) — **nooit als bronhouder of schaduwregister** (rolzuiverheid conform BALO). Nieuw thema = nieuwe connector + datakwaliteit-profiel, niet een nieuw systeem.
+
+---
+
+## Use-cases (live)
+
+| Use-case | Waar | Bron |
+|---|---|---|
+| **Afval & circulariteit-dashboard** — provincie-choropleth + trend + AI-duiding met **doorkijk naar 2035** (Holt), brondata-paneel en **NL→SQL-chatbot** (read-only) | `/afval` · `/api/afval/*` | CBS 83558NED + CLO/Afvalfonds/LMA in een canoniek **DuckDB**-datamodel (CBS↔AMICE) |
+| **Vergunningen-chatbot** — "welke regels gelden voor activiteit X op locatie Y?"; kaartprik weegt DSO toepasbare regels, geldende omgevingsplan-regels én een REV-explosieaandachtsgebied-waarschuwing mee | `/chatbot` · `/api/chat` | DSO Toepasbare Regels (**productie**) + Ozon Presenteren (**productie**) + REV + IPLO-RAG (bge-m3 + Qwen) |
+| **REV-viewer** — risicovolle productiefaciliteiten (externe veiligheid) op de kaart, met AI-duiding | `/viewer` · `/api/rev/features` | REV via PDOK OGC API Features |
+| **Datavraag-chatbot** — NL-vraag → SPARQL op een eigen linked-data-laag | `/datavraag` · `/api/datavraag` | eigen REV-LD + Kadaster KKG (SPARQL/GeoSPARQL) |
+| **Semantische browser** — informatiemodellen (IMX-Geo, IMEV) als bewegend netwerk | `/semantiek` | IMX-Geo linked data + IMEV-begrippen |
+| **Geluidsmeter** — privacyvriendelijk geluidsprofiel bij een vaste meetlocatie + mobiele metingen | `/public` · `/dashboard` | eigen C922-sensor + RIVM/CVGG |
+| **Roadmap & leerpunten** — wat er live is en wat we leren over de kwaliteit van het stelsel | `/roadmap` | — |
+
+De **AI-laag** is lokaal (Qwen2.5-32B op `localhost:8080`) + Claude, altijd met bronverwijzing, conservatief contract (nette degradatie) en no-hallucination-prompts.
+
+---
+
+## Architectuur (kort)
 
 ```
-[C922 USB-mic op orin3]
-  → audio_capture.py (sounddevice, 60s frames)
-  → feature_extract.py (RMS/Lmax/banden/events — géén ruwe audio)
-  → JSONL in /mnt/nvme/geluidsmeter/data/raw_features/
-  → aggregate.py (dag/avond/nacht profiel)
-  → GeoParquet + GeoJSON in /mnt/nvme/geluidsmeter/data/processed/
-  → Portolan CLI (STAC catalogus)
+L6 Toepassingen   dashboards · viewers · chatbots  (FastAPI, static HTML + MapLibre)
+L5 Kennis & AI    RAG (IPLO/Stelselcatalogus) · Qwen lokaal · rules-as-code
+L4 Façades        REST /api/* op één datapad
+L3 Informatie     GeoParquet/GeoJSON · DuckDB-datamodel · STAC (Portolan)
+L2 Verwerking     valideren · ruimtelijk duiden · analyseren/signaleren · forecast (Holt)
+L1 Connectors     DSO · REV/PDOK · CBS · Samen Meten · Ozon · eigen sensor
+L0 Edge-runtime   Jetson AGX Orin · lokale LLM
 ```
+
+Patroon per thema: **connector → usecase-service → REST-route → dashboard**. Zie de connector-laag in `src/leefomgevinglab/connectors/` en de use-cases in `src/leefomgevinglab/usecases/`.
+
+---
+
+## Repo-structuur
+
+```
+src/leefomgevinglab/
+  connectors/     BaseConnector + DSO, REV, CBS-afval, Ozon, externe-veiligheid …
+  usecases/       afval/ (dashboard, service, duiding, chat), vergunningen/, rev_viewer/, datavraag/ …
+  afvaldb/        DuckDB-store, crosswalk, loaders (cbs/clo/afvalfonds/lma), Holt-forecast
+  rag/ semantiek/ ld/   RAG-pijplijn, linked data
+  geluidsmeter/   audio capture, feature-extract, aggregatie, FastAPI-app (geluidsmeter.api:app)
+  static/         dashboards en pagina's (index, afval, roadmap, viewer, chat …)
+scripts/          01–12: record/aggregatie/ingest/RAG-index/tunnel …
+core/config.yaml  configuratie (omgeving-schakelaars, endpoints, drempels)
+docs/superpowers/ specs/ en plans/ per feature
+```
+
+Data staat op **NVMe** (`/mnt/nvme/geluidsmeter/data/…`), niet in de repo (`.gitignore`).
+
+---
 
 ## Setup
 
 ```bash
-# 1. NVMe dirs aanmaken (eenmalig, sudo vereist)
-sudo mkdir -p /mnt/nvme/geluidsmeter/data/{raw_features,processed,external/{atlas,cvgg,pdok_3d_geluid},catalog}
-sudo chown -R bob:bob /mnt/nvme/geluidsmeter
-
-# 2. Venv
-cd ~/Geluidsmeter
-python3 -m venv .venv
-source .venv/bin/activate
+cd /mnt/nvme/workspaces/LeefomgevingLab      # of ~/Geluidsmeter (symlink)
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# 3. Locatie invullen (NOOIT committen)
-nano core/location_private.yaml
+# NVMe data-dirs (eenmalig, sudo)
+sudo mkdir -p /mnt/nvme/geluidsmeter/data/{raw_features,processed,external,catalog}
+sudo chown -R bob:bob /mnt/nvme/geluidsmeter
 
-# 4. Test meting (5 seconden, geen opslaan)
-python3 scripts/01_record_features.py --duration 5 --dry-run
-
-# 5. Capture loop starten
-python3 -c "from geluidsmeter.audio_capture import run_capture_loop; run_capture_loop()"
+# Geheimen in .env (NIET committen — staat in .gitignore):
+#   DSO_API_KEY         DSO/Ozon pre-productie-key
+#   DSO_API_KEY_PROD    DSO/Ozon productie-key (toepasbare regels + Presenteren)
 ```
 
-## API
-
+### API draaien
 ```bash
 bash scripts/05_run_api.sh
-# → http://localhost:8792/latest
-# → http://localhost:8792/health
+# uvicorn leefomgevinglab.geluidsmeter.api:app --host 0.0.0.0 --port 8792 --app-dir src
+# → http://localhost:8792/            (landing)
+# → http://localhost:8792/afval       (afval-dashboard)
+# → http://localhost:8792/chatbot     (vergunningen-chatbot)
+```
+In productie draait de app als systemd-unit `leefomgevinglab-api.service` (poort 8792), publiek via een Cloudflare-tunnel.
+
+### Data laden (voorbeelden)
+```bash
+python3 scripts/11_fetch_afval_aggregaat.py   # CBS-afvalaggregaat + provincie-geometrie
+python3 scripts/12_fetch_afval_bronnen.py     # DuckDB-afvaldatabase + Holt-forecast
+python3 scripts/07_build_rag_index.py         # RAG-index (embedding-server actief)
 ```
 
-## Poorten
+---
+
+## Omgeving-schakelaars (DSO / Ozon)
+
+DSO Toepasbare Regels en Ozon Presenteren zijn per endpoint op **pre** of **prod** te zetten in `core/config.yaml` (`dso.{zoek,rtr,uitvoeren}_env`, `ozon.environment`); de bijbehorende key komt uit `.env` (`DSO_API_KEY` / `DSO_API_KEY_PROD`). Standaard staat de toepasbare-regels-keten + Ozon op **productie**. Zie `/roadmap` voor de actuele status en bekende gaten (o.a. DSO-Uitvoeren prod-500, Ozon artikel-niveau).
+
+---
+
+## Poorten (orin3)
 
 | Dienst | Poort |
 |---|---|
-| Geluidsmeter API | **8792** |
+| **LeefomgevingLab API** | **8792** |
+| llama.cpp Qwen (lokaal) | 8080 |
+| embedding-server (bge-m3) | 8082 |
 | Derwisch backend | 8789 |
-| Derwisch LLM | 8080/8081 |
 | felix-nazaten upload | 8791 |
 
-## LeefomgevingLab — toekomstige architectuur
+---
 
-Dit project groeit uit tot **LeefomgevingLab**, een edge geo-lab op Jetson Orin. Geluid is één van meerdere use-cases. De REV-viewer (UC-04) is beschikbaar op `/viewer` met features uit PDOK OGC API (productiefaciliteiten). Raadpleeg `LeefomgevingLab architectuuropzet v0_3.md` en `docs/superpowers/specs/2026-06-20-leefomgevinglab-fundering-design.md` voor architectuur; zie `docs/superpowers/plans/2026-06-20-leefomgevinglab-fundering-uc04.md` voor implementatieplan.
+## Privacy & eerlijkheid
 
-## Privacy
+- `store_raw_audio: false` — geen ruwe audio op disk; locatie afgerond op 100 m in publieke output.
+- `.env` en `core/location_private.yaml` staan in `.gitignore`.
+- Elke waarde is herleidbaar naar bron + licentie; modelmatige/indicatieve elementen en niet-open bronnen worden expliciet gelabeld.
 
-- `store_raw_audio: false` — geen ruwe audio op disk
-- Locatie afgerond op 100m grid in publieke output
-- `core/location_private.yaml` staat in `.gitignore`
+---
+
+## Meer
+
+- Architectuur: `LeefomgevingLab architectuuropzet v0_3.md`
+- Per-feature specs en plannen: `docs/superpowers/specs/` en `docs/superpowers/plans/`
+- Roadmap & leerpunten: **`/roadmap`** (live)
