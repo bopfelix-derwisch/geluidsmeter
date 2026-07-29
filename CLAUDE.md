@@ -28,8 +28,7 @@ Dan: `core/config.yaml`
 | LeefomgevingLab | `/home/bob/Geluidsmeter` (symlink → `/mnt/nvme/workspaces/LeefomgevingLab`) | https://github.com/bopfelix-derwisch/leefomgevinglab |
 
 Push met: `git push origin master`
-> Repo wordt hernoemd `geluidsmeter` → `leefomgevinglab` (2026-07-29). Tot de GitHub-rename klaar is,
-> blijft `origin` naar `.../geluidsmeter.git` wijzen (GitHub redirect na de rename); daarna `git remote set-url`.
+> Repo hernoemd `geluidsmeter` → `leefomgevinglab` (2026-07-29); `origin` bijgewerkt, oude URL redirect (301).
 
 ---
 
