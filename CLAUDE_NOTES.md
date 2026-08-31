@@ -1,6 +1,8 @@
-# Geluidsmeter — Claude Notes
+# LeefomgevingLab — Claude Notes
 
-## Environment check (2026-05-13)
+> Init-logboek uit de *Geluidsmeter*-periode (mei 2026). De tabel hieronder is een **momentopname van 2026-05-13** en wordt bewust niet bijgewerkt; actuele stand staat in `CLAUDE.md` en `README.md`. De commando's verderop zijn wél naar het huidige pad getrokken.
+
+## Environment check (2026-05-13, historisch)
 
 | Check | Uitkomst |
 |---|---|
@@ -34,7 +36,7 @@ sudo chown -R bob:bob /mnt/nvme/geluidsmeter
 ## Venv aanmaken en packages installeren
 
 ```bash
-cd ~/Geluidsmeter
+cd ~/LeefomgevingLab
 python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip wheel setuptools
@@ -44,7 +46,7 @@ pip install -r requirements.txt
 ## Eerste test (na venv + NVMe dirs)
 
 ```bash
-cd ~/Geluidsmeter
+cd ~/LeefomgevingLab
 source .venv/bin/activate
 python3 scripts/01_record_features.py --duration 5 --dry-run
 ```

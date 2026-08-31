@@ -412,7 +412,7 @@ def api_duiding(req: DuidingRequest):
 
 @app.get("/viewer", response_class=HTMLResponse)
 def viewer_page():
-    viewer_html = Path(__file__).parent.parent / "leefomgevinglab" / "viewer" / "static" / "viewer.html"
+    viewer_html = Path(__file__).parent.parent / "viewer" / "static" / "viewer.html"
     return viewer_html.read_text()
 
 
