@@ -90,13 +90,15 @@
       {key:"stof_null", label:"Stof leeg", slecht:true,
         uitleg:"Features zonder maatgevende stof (waar dat veld hoort)."},
       {key:"verlopen", label:"Verlopen", slecht:true,
-        uitleg:"Objecten met een eind_geldigheid in het verleden die toch worden geleverd."},
+        uitleg:"Objecten met een eind_geldigheid in het verleden die toch worden geleverd. Vult de laag eind_geldigheid nergens, dan is dit niet meetbaar (–) — dat is iets anders dan nul verlopen objecten."},
       {key:"duplicaten", label:"Duplicaten", slecht:true,
         uitleg:"Identieke features (zelfde identificatie + geometrie) in de sample."},
       {key:"imev_incompleet_pct", label:"IMEV-conformiteit (% incompleet)", pct:true, slecht:true,
         uitleg:"Aandeel features in de sample dat minstens één IMEV 3.0.2-verplicht veld mist (identificatie, bronhoudercode, bevoegdgezag, begin_geldigheid, tijdstip_registratie, geometrie). Een verplicht veld wordt alleen als leeg geteld wáár de laag het ontsluit; ontsluit de laag het veld niet, dan komt het in imev_velden_niet_in_schema (structureel)."},
       {key:"imev_ontbrekend", label:"IMEV ontbrekende velden", slecht:true,
         uitleg:"Totaal aantal verplichte veldwaarden dat leeg is waar het veld wél ontsloten is (som over de sample) — 'het aantal velden dat niet aan IMEV 3.0.2 voldoet'."},
+      {key:"imev_niet_ontsloten", label:"IMEV-velden niet ontsloten", slecht:true,
+        uitleg:"Aantal IMEV 3.0.2-verplichte velden dat de laag helemáál niet ontsluit — structurele non-conformiteit, los van of de wél geleverde velden gevuld zijn. Beweeg over de cel voor de veldnamen."},
       {key:"totaal", label:"Dekking (totaal)", slecht:false,
         uitleg:"Exact aantal features in de laag (via resultType=hits; respecteert de bronhouder/activiteit-selectie)."},
       {key:"n_bronhouders", label:"# Bronhouders", slecht:false,
@@ -109,10 +111,12 @@
       {key:"bron_null",label:"Bron leeg"},{key:"stof_null",label:"Stof leeg"},
       {key:"verlopen",label:"Verlopen"},{key:"duplicaten",label:"Dupl."},
       {key:"imev_incompleet",label:"IMEV incompl."},{key:"imev_incompleet_pct",label:"IMEV %",pct:true},
-      {key:"imev_ontbrekend",label:"IMEV ontbr."},{key:"n_bronhouders",label:"#Bronh."},
+      {key:"imev_ontbrekend",label:"IMEV ontbr."},
+      {key:"imev_niet_ontsloten",label:"IMEV niet ontsl."},{key:"n_bronhouders",label:"#Bronh."},
     ];
     const $ = id => document.getElementById(id);
     function esc(s){ const t=document.createElement("span"); t.textContent=s==null?"":String(s); return t.innerHTML; }
+    function escAttr(s){ return esc(s).replace(/"/g,"&quot;"); }
     function num(n){ return n==null?"–":Number(n).toLocaleString("nl-NL"); }
     function pctPill(p){ if(p==null) return '<span class="muted">–</span>';
       const c=p<5?"ok":(p<=25?"mid":"bad"); return '<span class="pill '+c+'">'+esc(p)+'%</span>'; }
@@ -143,7 +147,10 @@
         if(r.error) return '<tr><td class="laag">'+esc(shortLaag(r.laag))+'</td><td colspan="'+COLS.length+'" class="muted" style="text-align:left">geen data voor deze selectie</td></tr>';
         return '<tr><td class="laag">'+esc(shortLaag(r.laag))+'</td>'+ COLS.map(c => {
           const v=r[c.key]; const cell = c.pct?pctPill(v):(c.muted?'<span class="muted">'+num(v)+'</span>':num(v));
-          return '<td class="'+(c.key===asp?'sel':'')+'">'+cell+'</td>';
+          // bij 'IMEV niet ontsl.' de veldnamen als tooltip meegeven
+          const nis = (c.key==="imev_niet_ontsloten" && (r.imev_velden_niet_in_schema||[]).length)
+            ? ' title="niet ontsloten: '+escAttr(r.imev_velden_niet_in_schema.join(", "))+'"' : '';
+          return '<td class="'+(c.key===asp?'sel':'')+'"'+nis+'>'+cell+'</td>';
         }).join("")+'</tr>';
       }).join("") || '<tr><td class="muted">geen data</td></tr>';
     }

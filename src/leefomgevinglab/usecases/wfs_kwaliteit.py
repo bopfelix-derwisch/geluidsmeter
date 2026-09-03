@@ -17,6 +17,30 @@ from shapely.geometry import shape
 
 _SRC_FIELDS = ("bedrijfsnaam", "naamexploitant", "bronhouder")
 
+# waarden die de REV gebruikt om "geen bruikbare waarde" uit te drukken (IMEV-nilReason-achtig)
+_GEEN_WAARDE = {"onbekend", "waardeonbekend", "nietvantoepassing", "geenwaarde"}
+
+
+def _stof_waarde(v):
+    """Normaliseer maatgevende_stof naar een bruikbare stofnaam, of None.
+
+    De WFS levert dit als genest object óf als JSON-string:
+    {"categorieNaam": ..., "chemischeNaam": "propaan"} / {"geenWaardeReden": "nietVanToepassing"}.
+    Zelfde afhandeling als connectors/externe_veiligheid.py.
+    """
+    if isinstance(v, str) and v.startswith("{"):
+        try:
+            v = json.loads(v)
+        except ValueError:
+            pass
+    if isinstance(v, dict):
+        if v.get("geenWaardeReden"):
+            return None
+        v = v.get("chemischeNaam") or v.get("categorieNaam")
+    if not v or str(v).strip().lower() in _GEEN_WAARDE:
+        return None
+    return v
+
 # IMEV 3.0.2: verplichte attributen van elk ExterneVeiligheidsobject, gemapt op de WFS-veldnamen.
 # 'bevoegdgezag' (bevoegdGezagCode) is óók IMEV-verplicht en wordt alleen geëvalueerd op lagen die
 # het ontsluiten (bv. ev_activiteiten); waar het veld niet in het schema zit, gaat het naar niet_in_schema.
@@ -91,6 +115,7 @@ def _sample(client, wfs_url, laag, n, cql=None):
 def _metrics_uit_sample(features: list, nu: datetime, bronhouders: set, activiteiten: set,
                         imev_velden=IMEV_VERPLICHTE_VELDEN, geometrie_verplicht: bool = True) -> dict:
     src_null = stof_null = verlopen = 0
+    eind_gevuld = 0                              # features met een gevulde eind_geldigheid
     geom_valid = geom_invalid = geom_empty = geom_null = 0
     seen = set()
     dup = 0
@@ -120,7 +145,7 @@ def _metrics_uit_sample(features: list, nu: datetime, bronhouders: set, activite
             imev_incompleet += 1
         if not any(p.get(k) for k in _SRC_FIELDS):
             src_null += 1
-        if "maatgevende_stof" in p and not p.get("maatgevende_stof"):
+        if "maatgevende_stof" in p and _stof_waarde(p.get("maatgevende_stof")) is None:
             stof_null += 1
         bh = p.get("bronhouder")
         if bh:
@@ -130,8 +155,10 @@ def _metrics_uit_sample(features: list, nu: datetime, bronhouders: set, activite
         if act:
             activiteiten.add(act)
         eg = _parse_dt(p.get("eind_geldigheid"))
-        if eg and eg < nu:
-            verlopen += 1
+        if eg:
+            eind_gevuld += 1
+            if eg < nu:
+                verlopen += 1
         g = f.get("geometry")
         if not g:
             geom_null += 1
@@ -152,7 +179,10 @@ def _metrics_uit_sample(features: list, nu: datetime, bronhouders: set, activite
         seen.add(key)
     n = len(features)
     return {
-        "sample": n, "bron_null": src_null, "stof_null": stof_null, "verlopen": verlopen,
+        # verlopen is alleen meetbaar als de laag überhaupt een eind_geldigheid vult;
+        # anders None (= '–' in de UI) i.p.v. een 0 die "geen probleem" suggereert.
+        "sample": n, "bron_null": src_null, "stof_null": stof_null,
+        "verlopen": verlopen if eind_gevuld else None,
         "geom_valid": geom_valid, "geom_invalid": geom_invalid, "geom_empty": geom_empty,
         "geom_null": geom_null, "duplicaten": dup, "n_bronhouders": len(laag_bronh),
         "geom_invalid_pct": round(100 * geom_invalid / n, 1) if n else None,
@@ -162,6 +192,8 @@ def _metrics_uit_sample(features: list, nu: datetime, bronhouders: set, activite
         "imev_incompleet_pct": round(100 * imev_incompleet / n, 1) if n else None,
         "imev_veld_null": {v: c for v, c in imev_veld_null.items() if c},
         "imev_velden_niet_in_schema": imev_niet_in_schema,
+        # structurele non-conformiteit: verplichte velden die de laag helemaal niet ontsluit
+        "imev_niet_ontsloten": len(imev_niet_in_schema),
     }
 
 

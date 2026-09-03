@@ -81,6 +81,46 @@ def test_imev_verplicht_veld_niet_in_schema_wordt_niet_geteld():
     assert m["imev_ontbrekend"] == 0
 
 
+def test_imev_niet_ontsloten_telt_structureel_ontbrekende_velden():
+    # de laag ontsluit bevoegdgezag/bronhoudercode niet -> structureel niet-conform, telbaar voor de tabel
+    m = wk._metrics_uit_sample([_feat({"identificatie": "1"}, _VALID)], NU, set(), set(),
+                               imev_velden=("identificatie", "bronhoudercode", "bevoegdgezag"),
+                               geometrie_verplicht=False)
+    assert m["imev_niet_ontsloten"] == 2
+
+
+def test_stof_genest_object_met_chemische_naam_telt_als_gevuld():
+    m = _metrics([_feat({"identificatie": "1",
+                         "maatgevende_stof": {"categorieNaam": "klasse 2.1: Brandbaar gas",
+                                              "chemischeNaam": "propaan"}})])
+    assert m["stof_null"] == 0
+
+
+def test_stof_json_string_met_chemische_naam_telt_als_gevuld():
+    m = _metrics([_feat({"identificatie": "1",
+                         "maatgevende_stof": '{"categorieNaam": "klasse 2.1", "chemischeNaam": "propaan"}'})])
+    assert m["stof_null"] == 0
+
+
+def test_stof_geen_waarde_reden_telt_als_leeg():
+    m = _metrics([_feat({"identificatie": "1",
+                         "maatgevende_stof": {"geenWaardeReden": "nietVanToepassing"}})])
+    assert m["stof_null"] == 1
+
+
+def test_stof_waarde_onbekend_telt_als_leeg():
+    m = _metrics([_feat({"identificatie": "1",
+                         "maatgevende_stof": '{"categorieNaam": "waardeOnbekend", "chemischeNaam": "onbekend"}'})])
+    assert m["stof_null"] == 1
+
+
+def test_verlopen_is_none_als_geen_enkele_feature_eind_geldigheid_heeft():
+    # eind_geldigheid staat wel in het schema maar is overal leeg -> niet meetbaar, geen '0'
+    m = _metrics([_feat({"identificatie": "1", "eind_geldigheid": None}),
+                  _feat({"identificatie": "2", "eind_geldigheid": None})])
+    assert m["verlopen"] is None
+
+
 def test_bouw_cql():
     assert wk.bouw_cql() is None
     assert wk.bouw_cql(bronhouder="OD X") == "bronhouder='OD X'"
